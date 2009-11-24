@@ -1,11 +1,14 @@
 ;;
-;; Provides functions for listening over a network socket.
+;; Provides functions for listening to HL7 messages over a network
+;; socket.
 ;;
 (ns org.cooleydickinson.messagehub.listener
   (:use
    [clojure.contrib.logging]
    [clojure.contrib.server-socket])
-  (:require redis)
+  (:require
+   [redis]
+   [org.cooleydickinson.messagehub.parser :as parser])
   (:import
    (java.io InputStreamReader)
    (java.io OutputStreamWriter)
@@ -14,38 +17,52 @@
    (java.nio.charset Charset)
    (java.net Socket)))
 
+;; a test message
+(def TEST-MESSAGE "PID|||500515|123121|TEST^PCP^^^^||19490125|F||W|PO BOX 89^^GILBERTVILLE^MA^01031^^|WOR
+PV1||O|LB|3|||000298^SILVERSTEIN^SUZY^S^^MD|||LB||||1|||000298^SILVERSTEIN^SUZY^S^^MD|
+GT1|1||TEST^PCP^||PO BOX 89^^GILBERTVILLE^MA^01031^^|||19490125|F||P|559-62-0314|||1||
+IN1|1||428|HEALTH NEW ENGLAND|ONE MONARCH PLACE^^SPRINGFIELD^MA^01144^^|||||||||||TEST
+IN2||559-62-0314|^|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||^
+IN1|2||200|SELF PAY AFTER INSURANCE|^^^^^^|||||||||||TEST^PCP^|18|19490125|^^^^^^|||||
+IN2||559-62-0314|^|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||^^||18|")
+
 ;; our ASCII codes
 (def ASCII_VT 11)
 (def ASCII_FS 28)
 (def ASCII_CR 13)
 (def ASCII_LF 10)
 
-(defn handle-message
-  "Processes an HL7 message by appending it to the end of the names queue."
-  [message queue]
-
-  (redis/with-server {:host "cdhintraapp01.cooley-dickinson.org"
-                      :port 6379
-                      :db 1}
-    (do
-      (redis/rpush queue message)))
-  
-  (info (str "Message Handled: " (sanitize-message message))))
-
-(defn handle-incomplete-message
-  "Processes an HL7 message."
+(defn sanitize-message
+  "Removes all control characters from a message."
   [message]
-  (warn (str "Incomplete Message: " (sanitize-message message))))
+  (. message replaceAll "\\p{Cntrl}" ""))
 
 (defn ascii-decimal-to-string
   "Converts a string of ASCII decimal values to a String."
   [decimal-data]
   (apply str (map char decimal-data)))
 
-(defn sanitize-message
-  "Removes all control characters from a message."
+(defn handle-message
+  "Processes an HL7 message by appending it to the end of the names queue."
+  [message queue]
+
+  ;; open a connection to our redis server and use database #1
+  (redis/with-server {:host "cdhintraapp01.cooley-dickinson.org"
+                      :port 6379
+                      :db 1}
+
+    (do
+
+      ;; push the new message onto the stack
+      (redis/rpush queue message)))
+
+  ;; log the fact that the message has been handled
+  (info (str "Message Handled: " (sanitize-message message))))
+
+(defn handle-incomplete-message
+  "Processes an HL7 message."
   [message]
-  (. message replaceAll "\\p{Cntrl}" ""))
+  (warn (str "Incomplete Message: " (sanitize-message message))))
 
 (defn send-test-message
   "Sends a test message to provided port on the local host."
@@ -56,7 +73,7 @@
               *out* (new OutputStreamWriter (. socket getOutputStream))]
 
       (print (char 11))
-      (print "PID|||500515|123121|TEST^PCP^^^^||19490125|F||W|PO BOX 89^^GILBERTVILLE^MA^01031^^|WORPV1||O|LB|3|||000298^SILVERSTEIN^SUZY^S^^MD|||LB||||1|||000298^SILVERSTEIN^SUZY^S^^MD|GT1|1||TEST^PCP^||PO BOX 89^^GILBERTVILLE^MA^01031^^|||19490125|F||P|559-62-0314|||1||IN1|1||428|HEALTH NEW ENGLAND|ONE MONARCH PLACE^^SPRINGFIELD^MA^01144^^|||||||||||TESTIN2||559-62-0314|^|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||^IN1|2||200|SELF PAY AFTER INSURANCE|^^^^^^|||||||||||TEST^PCP^|18|19490125|^^^^^^|||||IN2||559-62-0314|^|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||^^||18|")
+      (print TEST-MESSAGE)
       (print (char 28))
       (print (char 13))
              
