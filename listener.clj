@@ -70,8 +70,10 @@
 
 (defn hl7-receive-messages
   "Reads through the input stream and parses out HL7 messages as they
-  appear. Processors will be restarted when new messages are received
-  and handled."  [processors input-stream output-stream]
+  appear. Messages will be queued to the provided queue name as they
+  are received. Processors will be restarted when new messages are
+  received and handled."
+  [queue-name processors input-stream output-stream]
   
   ;; bind our streams to standard in and out
   (binding [*in* (new BufferedInputStream input-stream)
@@ -108,7 +110,7 @@
                   ;; this is the end of the message, handle it
                   (handle-message (ascii-decimal-to-string
                                    (conj message message-input))
-                                  "incoming-messages"
+                                  queue-name
                                   processors)
                   (info (str "RECV: Message"))
 
@@ -144,9 +146,14 @@
     (flush)))
 
 (defn start-server
-  "Starts a new server process for handling HL7 messages. The
-  processors will be restarted when new messages are received."
-  [processors]
-
-  ;; listen for new HL7 messages
-  (create-server 10000 (partial hl7-receive-messages processors) 5))
+  "Starts a new process that listens for incoming HL7 messages on the
+  given port. When a message is received, the message will be queued
+  in the queue with the given name. When messages are recieved, the
+  processors will be invoked to handle the messages on the queue. The
+  server will let num-backlog-connections queue for the provided
+  port."
+  [port queue-name processors num-backlog-connections]
+  (create-server
+   port
+   (partial hl7-receive-messages queue-name processors)
+   num-backlog-connections))
