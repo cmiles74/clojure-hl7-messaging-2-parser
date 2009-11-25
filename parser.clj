@@ -24,6 +24,11 @@ PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||200610
 ORC|NW|20061019172719
 OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
 
+(defn sanitize-message
+  "Removes all control characters from a message."
+  [message]
+  (. message replaceAll "\\p{Cntrl}" ""))
+
 (defn int-to-hl7-segment-field-name
   "Returns the name of the field that corresponds to the given field
   number on the message of the supplied type."

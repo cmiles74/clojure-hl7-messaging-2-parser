@@ -8,7 +8,8 @@
    [clojure.contrib.server-socket])
   (:require
    [redis]
-   [org.cooleydickinson.messagehub.parser :as parser])
+   [org.cooleydickinson.messagehub.parser :as parser]
+   [org.cooleydickinson.messagehub.processor :as processor])
   (:import
    (java.io InputStreamReader)
    (java.io OutputStreamWriter)
@@ -17,19 +18,15 @@
    (java.nio.charset Charset)
    (java.net Socket)))
 
-(defn sanitize-message
-  "Removes all control characters from a message."
-  [message]
-  (. message replaceAll "\\p{Cntrl}" ""))
-
 (defn ascii-decimal-to-string
   "Converts a string of ASCII decimal values to a String."
   [decimal-data]
   (apply str (map char decimal-data)))
 
 (defn handle-message
-  "Processes an HL7 message by appending it to the end of the names queue."
-  [message queue]
+  "Processes an HL7 message by appending it to the end of the names
+  queue. The processors will be restarted when messages are handled."
+  [message queue processors]
 
   ;; open a connection to our redis server and use database #1
   (redis/with-server {:host "cdhintraapp01.cooley-dickinson.org"
@@ -40,13 +37,17 @@
       ;; push the new message onto the stack
       (redis/rpush queue message)))
 
+  ;; start our list of processors
+  (if processors
+    (dorun (map processor/start-processor processors)))
+
   ;; log the fact that the message has been handled
-  (info (str "Message Handled: " (sanitize-message message))))
+  (debug (str "RECV: " (parser/sanitize-message message))))
 
 (defn handle-incomplete-message
   "Processes an HL7 message."
   [message]
-  (warn (str "Incomplete Message: " (sanitize-message message))))
+  (warn (str "RECV BAD: " (parser/sanitize-message message))))
 
 (defn send-test-message
   "Sends a test message to provided port on the local host."
@@ -69,8 +70,8 @@
 
 (defn hl7-receive-messages
   "Reads through the input stream and parses out HL7 messages as they
-  appear."
-  [input-stream output-stream]
+  appear. Processors will be restarted when new messages are received
+  and handled."  [processors input-stream output-stream]
   
   ;; bind our streams to standard in and out
   (binding [*in* (new BufferedInputStream input-stream)
@@ -99,7 +100,7 @@
 
               (do
 
-                ;; conver the message to a string and get our ack
+                ;; convert the message to a string and get our ack
                 (let [message-string (ascii-decimal-to-string
                                       (conj message message-input))
                       ack-message (parser/ack-hl7-message message-string)]
@@ -107,12 +108,17 @@
                   ;; this is the end of the message, handle it
                   (handle-message (ascii-decimal-to-string
                                    (conj message message-input))
-                                  "incoming-messages")
+                                  "incoming-messages"
+                                  processors)
+                  (info (str "RECV: Message"))
 
                   ;; send an ack if one is required
                   (if ack-message
-                    (info (str "Sending ACK: " (sanitize-message ack-message)))
-                    (print ack-message))))
+                    (do
+                      (debug (str "SENT: "
+                                  (parser/sanitize-message ack-message)))
+                      (print ack-message)
+                      (info (str "SENT: ACK"))))))
 
               ;; this message didn't complete normally
               ;; we won't send and error ACK as the connection to the
@@ -128,7 +134,7 @@
         ;; markers
         (if (not (or (= -1 input)
                      (= parser/ASCII_LF input)))
-          (warn (str "Out-of-band data received: " input))))
+          (warn (str "RECV OOB: " input))))
       
       ;; as long as there is data to read, keep reading
       (if (not= -1 input)
@@ -138,8 +144,9 @@
     (flush)))
 
 (defn start-server
-  "Starts a new server process."
-  []
+  "Starts a new server process for handling HL7 messages. The
+  processors will be restarted when new messages are received."
+  [processors]
 
   ;; listen for new HL7 messages
-  (create-server 10000 hl7-receive-messages 5))
+  (create-server 10000 (partial hl7-receive-messages processors) 5))
