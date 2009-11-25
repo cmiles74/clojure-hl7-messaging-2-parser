@@ -17,21 +17,6 @@
    (java.nio.charset Charset)
    (java.net Socket)))
 
-;; a test message
-(def TEST-MESSAGE "PID|||500515|123121|TEST^PCP^^^^||19490125|F||W|PO BOX 89^^GILBERTVILLE^MA^01031^^|WOR
-PV1||O|LB|3|||000298^SILVERSTEIN^SUZY^S^^MD|||LB||||1|||000298^SILVERSTEIN^SUZY^S^^MD|
-GT1|1||TEST^PCP^||PO BOX 89^^GILBERTVILLE^MA^01031^^|||19490125|F||P|559-62-0314|||1||
-IN1|1||428|HEALTH NEW ENGLAND|ONE MONARCH PLACE^^SPRINGFIELD^MA^01144^^|||||||||||TEST
-IN2||559-62-0314|^|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||^
-IN1|2||200|SELF PAY AFTER INSURANCE|^^^^^^|||||||||||TEST^PCP^|18|19490125|^^^^^^|||||
-IN2||559-62-0314|^|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||^^||18|")
-
-;; our ASCII codes
-(def ASCII_VT 11)
-(def ASCII_FS 28)
-(def ASCII_CR 13)
-(def ASCII_LF 10)
-
 (defn sanitize-message
   "Removes all control characters from a message."
   [message]
@@ -52,7 +37,6 @@ IN2||559-62-0314|^||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
                       :db 1}
 
     (do
-
       ;; push the new message onto the stack
       (redis/rpush queue message)))
 
@@ -72,10 +56,10 @@ IN2||559-62-0314|^||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     (binding [*in* (new BufferedInputStream (. socket getInputStream))
               *out* (new OutputStreamWriter (. socket getOutputStream))]
 
-      (print (char 11))
-      (print TEST-MESSAGE)
-      (print (char 28))
-      (print (char 13))
+      (print (char parser/ASCII_VT))
+      (print parser/TEST-MESSAGE)
+      (print (char parser/ASCII_FS))
+      (print (char parser/ASCII_CR))
              
       (flush)
       (. *out* close)
@@ -97,7 +81,7 @@ IN2||559-62-0314|^||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     (loop [input (. *in* read)]
 
       ;; a new message has started
-      (if (= ASCII_VT input)
+      (if (= parser/ASCII_VT input)
          
         ;; accumulate the content of the message and continue to read
         ;; characters
@@ -107,17 +91,32 @@ IN2||559-62-0314|^||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
           ;; only read more characters if we aren't at the end of the
           ;; message or the end of our data
           (if (or (= -1 message-input)
-                  (and (= ASCII_CR message-input)
-                       (= ASCII_FS (last message))))
+                  (and (= parser/ASCII_CR message-input)
+                       (= parser/ASCII_FS (last message))))
 
-            (if (and (= ASCII_CR message-input) (= ASCII_FS (last message)))
+            (if (and (= parser/ASCII_CR message-input)
+                     (= parser/ASCII_FS (last message)))
 
-              ;; this is the end of the message, handle it
-              (handle-message (ascii-decimal-to-string
-                               (conj message message-input))
-                              "incoming-messages")
+              (do
+
+                ;; conver the message to a string and get our ack
+                (let [message-string (ascii-decimal-to-string
+                                      (conj message message-input))
+                      ack-message (parser/ack-hl7-message message-string)]
+
+                  ;; this is the end of the message, handle it
+                  (handle-message (ascii-decimal-to-string
+                                   (conj message message-input))
+                                  "incoming-messages")
+
+                  ;; send an ack if one is required
+                  (if ack-message
+                    (info (str "Sending ACK: " (sanitize-message ack-message)))
+                    (print ack-message))))
 
               ;; this message didn't complete normally
+              ;; we won't send and error ACK as the connection to the
+              ;; client has been broken
               (handle-incomplete-message
                (ascii-decimal-to-string
                 (conj message message-input))))
@@ -128,7 +127,7 @@ IN2||559-62-0314|^||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
         ;; out of band data recieved, ignore end-of-file and line-feed
         ;; markers
         (if (not (or (= -1 input)
-                     (= ASCII_LF input)))
+                     (= parser/ASCII_LF input)))
           (warn (str "Out-of-band data received: " input))))
       
       ;; as long as there is data to read, keep reading

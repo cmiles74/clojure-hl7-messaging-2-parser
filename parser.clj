@@ -5,7 +5,13 @@
 (ns org.cooleydickinson.messagehub.parser
   (:use
    [clojure.contrib.logging]))
-   
+
+;; our ASCII codes
+(def ASCII_VT 11)
+(def ASCII_FS 28)
+(def ASCII_CR 13)
+(def ASCII_LF 10)
+
 (def TEST-MESSAGE "MSH|^~\\&|System|HIS|HL7Genie|Hosp|20050804162010||ADT^A01|Message Control ID|P|2.3.1|||AL|AL
 EVN|A01|199901061000|199901101400|01||199901061000
 PID|||500515|123121|TEST^PCP^^^^||19490125|F||W|PO BOX 89^^GILBERTVILLE^MA^01031^^|WOR
@@ -67,3 +73,23 @@ IN2||559-62-0314|^||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
         (recur (rest segments))))
 
     (reverse @parsed-message)))
+
+(defn ack-hl7-message
+  [message]
+
+  ;; parse the message
+  (let [parsed-message (parse-hl7-message message)]
+
+    ;; verify that the sender is looking for an ack
+    (if (or (not (= "NE" ((first parsed-message) 15)))
+            (not (= "ER" ((first parsed-message) 15))))
+
+      ;; return our ack
+      (str (char ASCII_VT)
+           "MSA|AA|"
+           ((first parsed-message) 9) "|"
+           "Message Recieved Successfully|"
+           (char ASCII_FS) (char ASCII_CR))
+      
+      ;; return null
+      nil)))
