@@ -4,7 +4,10 @@
 
 (ns org.cooleydickinson.messagehub.parser
   (:use
-   [clojure.contrib.logging]))
+   [clojure.contrib.logging])
+  (:import
+   (java.text SimpleDateFormat)
+   (java.util Date)))
 
 ;; our ASCII codes
 (def ASCII_VT 11)
@@ -12,15 +15,14 @@
 (def ASCII_CR 13)
 (def ASCII_LF 10)
 
-(def TEST-MESSAGE "MSH|^~\\&|System|HIS|HL7Genie|Hosp|20050804162010||ADT^A01|Message Control ID|P|2.3.1|||AL|AL
-EVN|A01|199901061000|199901101400|01||199901061000
-PID|||500515|123121|TEST^PCP^^^^||19490125|F||W|PO BOX 89^^GILBERTVILLE^MA^01031^^|WOR
-PV1||O|LB|3|||000298^SILVERSTEIN^SUZY^S^^MD|||LB||||1|||000298^SILVERSTEIN^SUZY^S^^MD|
-GT1|1||TEST^PCP^||PO BOX 89^^GILBERTVILLE^MA^01031^^|||19490125|F||P|559-62-0314|||1||
-IN1|1||428|HEALTH NEW ENGLAND|ONE MONARCH PLACE^^SPRINGFIELD^MA^01144^^|||||||||||TEST
-IN2||559-62-0314|^|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||^
-IN1|2||200|SELF PAY AFTER INSURANCE|^^^^^^|||||||||||TEST^PCP^|18|19490125|^^^^^^|||||
-IN2||559-62-0314|^|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||^^||18|")
+;; timestamp format
+(def TIMESTAMP-FORMAT (new SimpleDateFormat "yyyMMddHHmmss"))
+
+(def TEST-MESSAGE "MSH|^~0\\&|AcmeHIS|StJohn|CATH|StJohn|20061019172719||ORM^O01|MSGID12349876|P|2.3
+PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||88 Punchward Dr.^^Los Angeles^CA^11221^USA|||||||
+PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||20061019172717|20061019172718
+ORC|NW|20061019172719
+OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
 
 (defn int-to-hl7-segment-field-name
   "Returns the name of the field that corresponds to the given field
@@ -78,7 +80,8 @@ IN2||559-62-0314|^||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
   [message]
 
   ;; parse the message
-  (let [parsed-message (parse-hl7-message message)]
+  (let [parsed-message (parse-hl7-message message)
+        msh-segment (first parsed-message)]
 
     ;; verify that the sender is looking for an ack
     (if (or (not (= "NE" ((first parsed-message) 15)))
@@ -86,8 +89,13 @@ IN2||559-62-0314|^||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
       ;; return our ack
       (str (char ASCII_VT)
+           "MSH|" (msh-segment 1) "|MSGHUB|" (msh-segment 3) "|"
+           (msh-segment 2) "|" (msh-segment 5) "|"
+           (. TIMESTAMP-FORMAT format (new Date)) "||ACK^001|"
+           (msh-segment 9) "|P|2.3"
+           (char ASCII_CR)
            "MSA|AA|"
-           ((first parsed-message) 9) "|"
+           (msh-segment 9) "|"
            "Message Recieved Successfully|"
            (char ASCII_FS) (char ASCII_CR))
       
