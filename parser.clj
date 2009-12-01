@@ -29,13 +29,13 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
   [message]
   (. message replaceAll "\\p{Cntrl}" ""))
 
-(defn int-to-hl7-segment-field-name
+(defn int-to-segment-field-name
   "Returns the name of the field that corresponds to the given field
   number on the message of the supplied type."
   [segment-type
   segment-field-number] segment-field-number)
 
-(defn parse-hl7-segment
+(defn parse-segment
   "Parses an HL7 message segment into a hash-map of values. The name
   of the field will be the key, unless the name is unknown in which
   case the key will be the field index number."
@@ -53,7 +53,7 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
           (reset! segment-type field))
 
         (swap! parsed-segment assoc
-               (int-to-hl7-segment-field-name @segment-type
+               (int-to-segment-field-name @segment-type
                                               @field-counter)
                field)
 
@@ -64,7 +64,7 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
 
     @parsed-segment))
 
-(defn parse-hl7-message
+(defn parse-message
   "Parses an HL7 message into a list of segments. Each segment will be
   a hash-map of fields and values."
   [message]
@@ -74,18 +74,18 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
     (loop [segments (. message split "\n")]
 
       (reset! parsed-message (conj @parsed-message
-                                   (parse-hl7-segment (first segments))))
+                                   (parse-segment (first segments))))
       
       (if (< 0 (count (rest segments)))
         (recur (rest segments))))
 
     (reverse @parsed-message)))
 
-(defn ack-hl7-message
+(defn ack-message
   [message]
 
   ;; parse the message
-  (let [parsed-message (parse-hl7-message message)
+  (let [parsed-message (parse-message message)
         msh-segment (first parsed-message)]
 
     ;; verify that the sender is looking for an ack
@@ -106,3 +106,5 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
       
       ;; return null
       nil)))
+
+
