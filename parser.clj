@@ -15,6 +15,10 @@
 (def ASCII_CR 13)
 (def ASCII_LF 10)
 
+;; message segment field names
+(def FIELD-NAMES
+     {:MSH {9 "id"}})
+
 ;; timestamp format
 (def TIMESTAMP-FORMAT (new SimpleDateFormat "yyyMMddHHmmss"))
 
@@ -32,8 +36,8 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
 (defn int-to-segment-field-name
   "Returns the name of the field that corresponds to the given field
   number on the message of the supplied type."
-  [segment-type
-  segment-field-number] segment-field-number)
+  [segment-type segment-field-number]
+  segment-field-number)
 
 (defn parse-segment
   "Parses an HL7 message segment into a hash-map of values. The name
@@ -82,6 +86,9 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
     (reverse @parsed-message)))
 
 (defn ack-message
+  "Returns an acknowledgement message for the given message. If the
+  message indicates that no acknowledgement should be returned, this
+  function returns nil."
   [message]
 
   ;; parse the message
@@ -107,4 +114,13 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
       ;; return null
       nil)))
 
+(defn message-id
+  "Returns the message id for the provided message."
+  [message]
 
+  ;; parse the message
+  (let [parsed-message (parse-message message)
+        msh-segment (first parsed-message)]
+
+    ;; return the message id
+    (msh-segment 9)))
