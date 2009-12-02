@@ -7,7 +7,9 @@
    [clojure.contrib.logging])
   (:import
    (java.text SimpleDateFormat)
-   (java.util Date)))
+   (java.util Date)
+   (org.apache.commons.logging Log)
+   (org.apache.commons.logging LogFactory)))
 
 ;; our ASCII codes
 (def ASCII_VT 11)
@@ -22,11 +24,15 @@
 ;; timestamp format
 (def TIMESTAMP-FORMAT (new SimpleDateFormat "yyyMMddHHmmss"))
 
-(def TEST-MESSAGE "MSH|^~0\\&|AcmeHIS|StJohn|CATH|StJohn|20061019172719||ORM^O01|MSGID12349876|P|2.3
+(defn TEST-MESSAGE
+  "Returns a test message with a unique message id."
+  []
+  (str "MSH|^~0\\&|AcmeHIS|StJohn|CATH|StJohn|20061019172719||ORM^O01|"
+       (. (new Date) getTime) "|P|2.3
 PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||88 Punchward Dr.^^Los Angeles^CA^11221^USA|||||||
 PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||20061019172717|20061019172718
 ORC|NW|20061019172719
-OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876")
+OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
 (defn sanitize-message
   "Removes all control characters from a message."
