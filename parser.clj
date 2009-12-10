@@ -45,6 +45,39 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
   [segment-type segment-field-number]
   segment-field-number)
 
+(defn parse-fields
+  "Parses the fields of segment into a list of values."
+  [field]
+  (seq (. field (split "\\^"))))
+
+(defn nth-or-nil
+  "Returns the nth item in the sequence or nil if the sequence doesn't
+  have an nth item. This differs from the standard nth function
+  because it won't through an index out of bounds exception."
+  [sequence index]
+  (if (> (count sequence) index)
+    (nth sequence index)
+    nil))
+
+(defn pretty-name-for-segment
+  "Parses a segment of HL7 name data into a pretty String containing
+  the name. This will be in the format...
+
+    Last, First Middle Suffix Prefix Degree"
+  [segment]
+
+  (if segment
+
+    (let [fields (parse-fields segment)]
+      (str (. (nth-or-nil fields 0) trim)
+           ", "
+           (. (str (nth-or-nil fields 1) " "
+                   (. (str (nth-or-nil fields 2) " "
+                           (. (str (nth-or-nil fields 3) " ") trim)
+                           (nth-or-nil fields 4) " ") trim)) trim)))
+
+    nil))
+
 (defn parse-segment
   "Parses an HL7 message segment into a hash-map of values. The name
   of the field will be the key, unless the name is unknown in which
@@ -120,13 +153,21 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
       ;; return null
       nil)))
 
+(defn msh-segment
+  "Returns the MSH segment of the message. The segment will be
+  returned as a hash-map, they keys will be the number of the
+  segment."
+  [message]
+
+  (let [parsed-message (parse-message message)]
+    (first parsed-message)))
+
 (defn message-id
   "Returns the message id for the provided message."
   [message]
 
   ;; parse the message
-  (let [parsed-message (parse-message message)
-        msh-segment (first parsed-message)]
+  (let [msh-segment (msh-segment message)]
 
     ;; return the message id
     (msh-segment 9)))
