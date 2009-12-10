@@ -114,7 +114,7 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
   (let [parsed-message (atom (list))]
 
-    (loop [segments (. message split "\n")]
+    (loop [segments (. message split "\n|\r")]
 
       (reset! parsed-message (conj @parsed-message
                                    (parse-segment (first segments))))
