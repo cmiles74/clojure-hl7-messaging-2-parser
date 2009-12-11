@@ -60,23 +60,21 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
     nil))
 
 (defn pretty-name-for-segment
-  "Parses a segment of HL7 name data into a pretty String containing
-  the name. This will be in the format...
+  "Parses a segment of (parsed) HL7 name data into a pretty String
+  containing the name. This will be in the format...
 
-    Last, First Middle Suffix Prefix Degree"
-  [segment]
+    Last, First Middle Suffix Prefix Degree
 
-  (if segment
+  When I say the HL7 name data should be parsed, I mean that the
+  entire messages should be the result of a 'parse-message' call."
+  [fields]
 
-    (let [fields (parse-fields segment)]
-      (str (. (nth-or-nil fields 0) trim)
-           ", "
-           (. (str (nth-or-nil fields 1) " "
-                   (. (str (nth-or-nil fields 2) " "
-                           (. (str (nth-or-nil fields 3) " ") trim)
-                           (nth-or-nil fields 4) " ") trim)) trim)))
-
-    nil))
+  (str (. (nth-or-nil fields 0) trim)
+       ", "
+       (. (str (nth-or-nil fields 1) " "
+               (. (str (nth-or-nil fields 2) " "
+                       (. (str (nth-or-nil fields 3) " ") trim)
+                       (nth-or-nil fields 4) " ") trim)) trim)))
 
 (defn parse-segment
   "Parses an HL7 message segment into a hash-map of values. The name
@@ -95,10 +93,17 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
         (if (= 0 @field-counter)
           (reset! segment-type field))
 
-        (swap! parsed-segment assoc
-               (int-to-segment-field-name @segment-type
-                                              @field-counter)
-               field)
+        (if (. field contains "^")
+
+          (swap! parsed-segment assoc
+                 (int-to-segment-field-name @segment-type
+                                            @field-counter)
+                 (parse-fields field))
+          
+          (swap! parsed-segment assoc
+                 (int-to-segment-field-name @segment-type
+                                            @field-counter)
+                 field))
 
         (swap! field-counter inc))
       
