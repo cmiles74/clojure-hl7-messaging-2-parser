@@ -2,7 +2,7 @@
 ;; Provides functions for parsing HL7 messages.
 ;;
 
-(ns org.cooleydickinson.messagehub.parser
+(ns org.cooleydickinson.hl7-parser.parser
   (:use
    [clojure.contrib.logging])
   (:import
