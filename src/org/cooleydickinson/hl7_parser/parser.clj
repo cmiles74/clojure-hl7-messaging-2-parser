@@ -99,14 +99,14 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
                  (int-to-segment-field-name @segment-type
                                             @field-counter)
                  (parse-fields field))
-          
+
           (swap! parsed-segment assoc
                  (int-to-segment-field-name @segment-type
                                             @field-counter)
                  field))
 
         (swap! field-counter inc))
-      
+
       (if (< 0 (count (rest fields)))
         (recur (rest fields))))
 
@@ -123,25 +123,81 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
       (reset! parsed-message (conj @parsed-message
                                    (parse-segment (first segments))))
-      
+
       (if (< 0 (count (rest segments)))
         (recur (rest segments))))
 
     (reverse @parsed-message)))
 
+(defn extract-text-from-segment
+  "Extracts the text from the parsed message for the supplied index of
+  the given segment. For instance, this function could extract all of
+  the text from the fifth index of the OBX segments:
+
+      (extract-text-from-segment parsed-message 'OBX' 5)"
+  [parsed-message segment-type index]
+
+  ;; combine all of the 5th items of the OBX segments into a string
+  (apply str
+
+         ;; pick out the OBX segments
+         (for [segment parsed-message :when (= (segment 0) segment-type)]
+
+           ;; return the 5th index and append a return
+           (str (segment index) "\n"))))
+
+(defn segments
+  "Returns the requested segments of the parsed message. For instance,
+  if the supplied segment type is 'OBX', all of the OBX segments will
+  be returned."
+  [parsed-message segment-type]
+
+  (for [segment parsed-message :when (= (segment 0) segment-type)]
+    segment))
+
+(defn segment-index-value
+  "Returns the value of the provided index in the named segment. If
+  the segment appears more than once, the first value is returned."
+  [parsed-message segment-type index]
+
+  ;; let value be the first matching segment with the requested index
+  (let [value (first
+               (for [segment parsed-message :when (= (segment 0) segment-type)]
+                 (segment index)))]
+
+    ;; make sure that this is not an empty string or a sequence with
+    ;; no length
+    (if (and value
+             (or (and (string? value)
+                      (< 0 (. (. value trim) length)))
+                 (and (seq? value)
+                      (< 0 (count value)))))
+
+      ;; return our valid value
+      value
+
+      ;; return nil to indicate a blank string or empty segment
+      nil)))
+
+(defn msh-segment
+  "Returns the MSH segment of the message."
+  [parsed-message]
+
+  ;; we can return the first MSH because only one is allowed
+  (first (segments parsed-message "MSH")))
+
 (defn ack-message
-  "Returns an acknowledgement message for the given message. If the
-  message indicates that no acknowledgement should be returned, this
-  function returns nil."
-  [message]
+  "Returns an acknowledgement message for the given parsed message. If
+  the message indicates that no acknowledgement should be returned,
+  this function returns nil."
+  [parsed-message]
 
   ;; parse the message
-  (let [parsed-message (parse-message message)
-        msh-segment (first parsed-message)]
+  (let [msh-segment (msh-segment parsed-message)]
 
     ;; verify that the sender is looking for an ack
-    (if (or (not (= "NE" ((first parsed-message) 15)))
-            (not (= "ER" ((first parsed-message) 15))))
+    (if (or (not (= "NE" (msh-segment 15)))
+            (not (= "ER" (msh-segment 15))))
 
       ;; return our ack
       (str (char ASCII_VT)
@@ -154,25 +210,52 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
            (msh-segment 9) "|"
            "Message Recieved Successfully|"
            (char ASCII_FS) (char ASCII_CR))
-      
+
       ;; return null
       nil)))
 
-(defn msh-segment
-  "Returns the MSH segment of the message. The segment will be
-  returned as a hash-map, they keys will be the number of the
-  segment."
-  [message]
-
-  (let [parsed-message (parse-message message)]
-    (first parsed-message)))
-
 (defn message-id
   "Returns the message id for the provided message."
-  [message]
+  [parsed-message]
+  (segment-index-value parsed-message "MSH" 9))
 
-  ;; parse the message
-  (let [msh-segment (msh-segment message)]
+(defn patient-account-number
+  "Returns the patient account number for the provided message."
+  [parsed-message]
+  (segment-index-value parsed-message "PID" 18))
 
-    ;; return the message id
-    (msh-segment 9)))
+(defn medical-record-number
+  "Returns the medical record number for the provided message."
+  [parsed-message]
+  (segment-index-value parsed-message "PID" 3))
+
+(defn attending-physician
+  "Returns the attending physician fields for the provided message."
+  [parsed-message]
+  (segment-index-value parsed-message "PV1" 7))
+
+(defn referring-physician
+  "Returns the referring physician fields for the provided message."
+  [parsed-message]
+  (segment-index-value parsed-message "PV1" 8))
+
+(defn consulting-physician
+  "Returns the consulting physician fields for the provided message."
+  [parsed-message]
+  (segment-index-value parsed-message "PV1" 9))
+
+(defn admitting-physician
+  "Returns the admitting physician fields for the provided message."
+  [parsed-message]
+  (segment-index-value parsed-message "PV1" 17))
+
+(defn ordering-provider
+  "Returns the ordering-provider fields for the provided message."
+  [parsed-message]
+  (segment-index-value parsed-message "ORC" 12))
+
+(defn observing-ordering-provider
+  "Returns the ordering-provider fields from the OBR (observing)
+  segment of the provided message."
+  [parsed-message]
+  (segment-index-value parsed-message "OBR" 16))
