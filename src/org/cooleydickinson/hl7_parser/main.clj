@@ -20,13 +20,14 @@
   [& args]
 
   ;; get a test message
-  (let [message (parser/TEST-MESSAGE)]
+  (let [message (parser/TEST-MESSAGE)
+        parsed-message (parser/parse-message message)]
 
     ;; provide a brief demonstration
-    (info (str "Message Id: " (parser/message-id message)))
-    (info (str "MSH Segment: " (parser/msh-segment message)))
-    (info (str "ACK: " (parser/ack-message message)))
-    (info (str "Parsed: " (parser/parse-message message)))))
+    (info (str "Message Id: " (parser/message-id parsed-message)))
+    (info (str "MSH Segment: " (parser/msh-segment parsed-message)))
+    (info (str "ACK: " (parser/ack-message parsed-message)))
+    (info (str "Parsed: " parsed-message))))
 
 (defn -main
   "Provides the main function needed to bootstrap the application."
