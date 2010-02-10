@@ -193,21 +193,21 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
   [parsed-message]
 
   ;; parse the message
-  (let [msh-segment (msh-segment parsed-message)]
+  (let [msh-segment-parsed (msh-segment parsed-message)]
 
     ;; verify that the sender is looking for an ack
-    (if (or (not (= "NE" (msh-segment 15)))
-            (not (= "ER" (msh-segment 15))))
+    (if (or (not (= "NE" (msh-segment-parsed 15)))
+            (not (= "ER" (msh-segment-parsed 15))))
 
       ;; return our ack
       (str (char ASCII_VT)
-           "MSH|" (msh-segment 1) "|MSGHUB|" (msh-segment 3) "|"
-           (msh-segment 2) "|" (msh-segment 5) "|"
+           "MSH|" (msh-segment-parsed 1) "|MSGHUB|" (msh-segment-parsed 3) "|"
+           (msh-segment-parsed 2) "|" (msh-segment-parsed 5) "|"
            (. TIMESTAMP-FORMAT format (new Date)) "||ACK^001|"
-           (msh-segment 9) "|P|2.3"
+           (msh-segment-parsed 9) "|P|2.3"
            (char ASCII_CR)
            "MSA|AA|"
-           (msh-segment 9) "|"
+           (msh-segment-parsed 9) "|"
            "Message Recieved Successfully|"
            (char ASCII_FS) (char ASCII_CR))
 
