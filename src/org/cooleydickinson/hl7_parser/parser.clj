@@ -59,6 +59,15 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
     (nth sequence index)
     nil))
 
+(defn first-field-value
+  "Returns only the first field value if there are multiple fields. If
+  there's only one field then that field is returned."
+  [fields]
+
+  (if (sequential? fields)
+    (first fields)
+    fields))
+
 (defn pretty-name-for-segment
   "Parses a segment of (parsed) HL7 name data into a pretty String
   containing the name. This will be in the format...
@@ -174,9 +183,7 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
                       (< 0 (count value)))))
 
       ;; return our valid value
-      (if (sequential? value)
-        (first value)
-        value)
+      value
 
       ;; return nil to indicate a blank string or empty segment
       nil)))

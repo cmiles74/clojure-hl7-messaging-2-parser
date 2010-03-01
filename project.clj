@@ -3,6 +3,6 @@
   :dependencies [[org.clojure/clojure "1.1.0"]
                  [org.clojure/clojure-contrib "1.1.0"]
                  [commons-logging/commons-logging "1.1.1"]]
-  :dev-dependencies [[org.clojure/swank-clojure "1.0"]]
+  :dev-dependencies [[swank-clojure "1.1.0"]]
   :repositories [["cdh" "http://cdhintranet01.cooley-dickinson.org/nexus/content/groups/public"]]
   :main "org.cooleydickinson.hl7_parser.main")
