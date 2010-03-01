@@ -174,7 +174,9 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
                       (< 0 (count value)))))
 
       ;; return our valid value
-      value
+      (if (sequential? value)
+        (first value)
+        value)
 
       ;; return nil to indicate a blank string or empty segment
       nil)))
