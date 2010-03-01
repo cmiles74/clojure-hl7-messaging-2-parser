@@ -226,45 +226,54 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 (defn message-id
   "Returns the message id for the provided message."
   [parsed-message]
-  (segment-index-value parsed-message "MSH" 9))
+  (first-field-value
+   (segment-index-value parsed-message "MSH" 9)))
 
 (defn patient-account-number
   "Returns the patient account number for the provided message."
   [parsed-message]
-  (segment-index-value parsed-message "PID" 18))
+  (first-field-value
+   (segment-index-value parsed-message "PID" 18)))
 
 (defn medical-record-number
   "Returns the medical record number for the provided message."
   [parsed-message]
-  (segment-index-value parsed-message "PID" 3))
+  (first-field-value
+   (segment-index-value parsed-message "PID" 3)))
 
 (defn attending-physician
   "Returns the attending physician fields for the provided message."
   [parsed-message]
-  (segment-index-value parsed-message "PV1" 7))
+  (first-field-value
+   (segment-index-value parsed-message "PV1" 7)))
 
 (defn referring-physician
   "Returns the referring physician fields for the provided message."
   [parsed-message]
-  (segment-index-value parsed-message "PV1" 8))
+  (first-field-value
+   (segment-index-value parsed-message "PV1" 8)))
 
 (defn consulting-physician
   "Returns the consulting physician fields for the provided message."
   [parsed-message]
-  (segment-index-value parsed-message "PV1" 9))
+  (first-field-value
+   (segment-index-value parsed-message "PV1" 9)))
 
 (defn admitting-physician
   "Returns the admitting physician fields for the provided message."
   [parsed-message]
-  (segment-index-value parsed-message "PV1" 17))
+  (first-field-value
+   (segment-index-value parsed-message "PV1" 17)))
 
 (defn ordering-provider
   "Returns the ordering-provider fields for the provided message."
   [parsed-message]
-  (segment-index-value parsed-message "ORC" 12))
+  (first-field-value
+   (segment-index-value parsed-message "ORC" 12)))
 
 (defn observing-ordering-provider
   "Returns the ordering-provider fields from the OBR (observing)
   segment of the provided message."
   [parsed-message]
-  (segment-index-value parsed-message "OBR" 16))
+  (first-field-value
+    (segment-index-value parsed-message "OBR" 16)))
