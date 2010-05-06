@@ -34,10 +34,23 @@ PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||200610
 ORC|NW|20061019172719
 OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
+(def REGEX-MESSAGE-ID
+     #"MSH\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|")
+
+(defn message-id-unparsed
+  "Returns the message id for an HL7 message by doing some simple
+  regular expression matching on the message. This function does *not*
+  involve parsing the message and may be faster."
+  [message]
+  (let [matches (re-find REGEX-MESSAGE-ID message)]
+    (if (and matches (second matches))
+      (second matches))))
+
 (defn sanitize-message
   "Removes all control characters from a message."
   [message]
-  (. message replaceAll "\\p{Cntrl}" ""))
+  (if message
+    (. message replaceAll "\\p{Cntrl}" "")))
 
 (defn int-to-segment-field-name
   "Returns the name of the field that corresponds to the given field
@@ -210,14 +223,14 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
       ;; return our ack
       (str (char ASCII_VT)
-           "MSH|" (msh-segment-parsed 1) "|MSGHUB|" (msh-segment-parsed 3) "|"
+           "MSH|^~\\&|MSGHUB|" (msh-segment-parsed 3) "|"
            (msh-segment-parsed 2) "|" (msh-segment-parsed 5) "|"
-           (. TIMESTAMP-FORMAT format (new Date)) "||ACK^001|"
-           (msh-segment-parsed 9) "|P|2.3"
+           (. TIMESTAMP-FORMAT format (new Date)) "||ACK|"
+           (msh-segment-parsed 9) "|P|2.3|"
            (char ASCII_CR)
            "MSA|AA|"
            (msh-segment-parsed 9) "|"
-           "Message Recieved Successfully|"
+           "Message Recieved Successfully|" (char ASCII_CR)
            (char ASCII_FS) (char ASCII_CR))
 
       ;; return null
@@ -276,4 +289,11 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
   segment of the provided message."
   [parsed-message]
   (first-field-value
-    (segment-index-value parsed-message "OBR" 16)))
+   (segment-index-value parsed-message "OBR" 16)))
+
+(defn copy-to-provider
+  "Returns the copy-to provider fields from the OBR (observing)
+  segment of the provided message."
+  [parsed-message]
+  (first-field-value
+   (segment-index-value parsed-message "OBR" 28)))

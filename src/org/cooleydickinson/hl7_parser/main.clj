@@ -24,6 +24,8 @@
         parsed-message (parser/parse-message message)]
 
     ;; provide a brief demonstration
+    (info (str "Message Id (unparsed message): "
+               (parser/message-id-unparsed message)))
     (info (str "Message Id: " (parser/message-id parsed-message)))
     (info (str "MSH Segment: " (parser/msh-segment parsed-message)))
     (info (str "ACK: " (parser/ack-message parsed-message)))
