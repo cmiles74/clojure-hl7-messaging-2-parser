@@ -9,3 +9,5 @@
 classes/*
 lib/*
 target/*
+.cake
+
