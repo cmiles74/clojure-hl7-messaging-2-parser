@@ -17,7 +17,7 @@
   []
   (str "MSH|^~\\&|AcmeHIS|StJohn|CATH|StJohn|20061019172719||ORM^O01|"
        (. (new Date) getTime) "|P|2.3
-PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||88 Punchward Dr.^^Los Angeles^CA^11221^USA|||||||
+PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||88 Punchward Dr.^^Los Angeles^CA^11221^USA~102 Main Street^Apartment #2^Palo Alto^CA^11234^USA|Fax^413&555&6767~Phone^716&232&8989||||||
 PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||20061019172717|20061019172718
 ORC|NW|20061019172719
 OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
@@ -107,10 +107,12 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
   (PushbackReader. (StringReader. (apply str text-in))))
 
 (defn peek-int
+  "Returns the next integer that will be read. You can only peek ahead
+  one integer."
   [reader]
+  
   (let [next-int (.read reader)]
     (.unread reader next-int)
-    (println next-int)
     next-int))
 
 (defn expect-char-int
@@ -205,29 +207,88 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
       :else
       (recur (.read reader) (conj buffer (char int-in))))))
 
+
+(defn read-subcomponents1
+  "Reads in the field subcomponent data from the reader."
+  [reader message data]
+
+  (expect-char-int (:subcomponent (:delimiters message)) (.read reader))
+
+  (loop [int-in (.read reader) subcomponents [data] subcomponent []]
+
+    (cond
+
+      (= (:subcomponent (:delimiters message)) int-in)
+      (recur (.read reader) (conj subcomponents (apply str subcomponent)) [])
+
+      (or (= *SEGMENT-DELIMITER* int-in)
+          (= (:field (:delimiters message)) int-in)
+          (= (:component (:delimiters message)) int-in)
+          (= (:repeating (:delimiters message)) int-in))
+      (do (.unread reader int-in)
+          (conj subcomponents (apply str subcomponent)))
+
+      :else
+      (recur (.read reader) subcomponents (conj subcomponent (char int-in))))))
+
 (defn read-field
   "Reads in the next field of segment data from the reader."
   [reader message]
 
-  (expect-char-int (:field (:delimiters message)) (.read reader))
+  (let [int-in (.read reader)]
+    (if (not (or (= (:field (:delimiters message)) int-in)
+                 (= (:repeating (:delimiters message)) int-in)))
+      (throw (Exception. "Exoected a field or repeating delimiter when reading field data"))))
 
-  (loop [int-in (.read reader) field-data []]
+  (loop [int-in (.read reader) field-data [] current-field []]
 
     (cond
 
-      (= -1 int-in)
-      (create-field (apply str field-data))
-
-      (= *SEGMENT-DELIMITER* int-in)
+      ;; handle repeating fields
+      (= (:repeating (:delimiters message)) int-in)
       (do (.unread reader int-in)
-          (create-field (apply str field-data)))
+          (recur nil
+                 (let [repeating-data (if (not (map? (first field-data)))
+                                        [(create-field field-data)]
+                                        field-data)]
+                   (conj repeating-data (read-field reader message)))
+                 []))
       
-      (= (:field (:delimiters message)) int-in)
+      ;; handle subcomponents
+      (= (:subcomponent (:delimiters message)) int-in)
       (do (.unread reader int-in)
-          (create-field (apply str field-data)))
+          (recur nil
+                 (conj field-data (read-subcomponents
+                                   reader message (apply str current-field)))
+                 []))
+
+      ;; handle components
+      (= (:component (:delimiters message)) int-in)
+      (recur (.read reader) (conj field-data (apply str current-field)) [])
+
+      ;; handle the end of the field
+      (or (= *SEGMENT-DELIMITER* int-in)
+          (= (:field (:delimiters message)) int-in)
+          (= -1 int-in))
+      (do
+
+        ;; don't unread the end of file marker
+        (if (not= -1 int-in)
+          (.unread reader int-in))
+
+        ;; create our field
+        (create-field
+
+         ;; if we have current field data, add that to our field data
+         (if (< 0 (count current-field))
+           (conj field-data (apply str current-field))
+           field-data)))
 
       :else
-      (recur (.read reader) (conj field-data (char int-in))))))
+      (recur (.read reader) field-data
+             (if int-in
+               (conj current-field (char int-in))
+               current-field)))))
 
 (defn read-msh-segment
   "Adds the \"MSH\" segment and its first field of data to the
@@ -296,7 +357,8 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
     (cond
 
-      (or (= -1 int-in) (and (nil? int-in) (= -1 (peek-int reader))))
+      (or (= -1 int-in)
+          (and (nil? int-in) (= -1 (peek-int reader))))
       (recur nil :complete message)
 
       (= parsing :delimiters)
@@ -312,7 +374,7 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
       :complete message
 
-      (not= int-in -1)
+      :else
       (recur (.read reader) parsing message))))
 
 (defn parse
