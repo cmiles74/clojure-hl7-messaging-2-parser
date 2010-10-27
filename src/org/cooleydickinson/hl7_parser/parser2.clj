@@ -60,6 +60,54 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
               (char (:escape delimiters-struct))
               (char (:subcomponent delimiters-struct)))))
 
+(defn pr-content
+  [delimiters content]
+  (if (coll? content)
+    (apply str
+           (interpose (char (:subcomponent delimiters)) content))
+    content))
+
+(defn pr-field
+  [delimiters field]
+  (let [content (:content field)]
+    (cond
+
+      (= 0 (count content))
+      ""
+
+      (map? (first content))
+      (apply str
+             (interpose (char (:repeating delimiters))
+                        (map (partial pr-field delimiters) content)))
+
+      :else
+      (apply str
+             (interpose (char (:component delimiters))
+                        (map (partial pr-content delimiters) content))))))
+
+(defn pr-segment
+  [delimiters segment]
+  (if (not= "MSH" (:id segment))
+
+      (str (:id segment) (char (:field delimiters))
+       (apply str
+              (interpose (char (:field delimiters))
+                         (map (partial pr-field delimiters) (:fields segment)))))
+
+      (str (:id segment) (char (:field delimiters))
+           (:content (first (:fields segment))) (char (:field delimiters))
+       (apply str
+              (interpose (char (:field delimiters))
+                         (map (partial pr-field delimiters)
+                              (rest (:fields segment))))))))
+
+(defn pr-message
+  [message]
+  (print (apply str
+                (interpose (char *SEGMENT-DELIMITER*)
+                           (map (partial pr-segment (:delimiters message))
+                                (:segments message))))))
+
 ;;
 ;; Construction methods used to build messages
 ;;
@@ -214,7 +262,9 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
   (expect-char-int (:subcomponent (:delimiters message)) (.read reader))
 
-  (loop [int-in (.read reader) subcomponents [data] subcomponent []]
+  (loop [int-in (.read reader)
+         subcomponents (if (not (nil? data)) [data] [])
+         subcomponent []]
 
     (cond
 
@@ -238,9 +288,9 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
   (let [int-in (.read reader)]
     (if (not (or (= (:field (:delimiters message)) int-in)
                  (= (:repeating (:delimiters message)) int-in)))
-      (throw (Exception. "Exoected a field or repeating delimiter when reading field data"))))
+      (throw (Exception. "Expected a field or repeating delimiter when reading field data"))))
 
-  (loop [int-in (.read reader) field-data [] current-field []]
+  (loop [int-in (.read reader) field-data [] current-field nil]
 
     (cond
 
@@ -248,9 +298,13 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
       (= (:repeating (:delimiters message)) int-in)
       (do (.unread reader int-in)
           (recur nil
-                 (let [repeating-data (if (not (map? (first field-data)))
-                                        [(create-field field-data)]
-                                        field-data)]
+                 (let [repeating-data
+                       (if (not (map? (first field-data)))
+                         [(create-field
+                           (if (not (nil? current-field))
+                             (conj field-data (apply str current-field))
+                             field-data))]
+                         field-data)]
                    (conj repeating-data (read-field reader message)))
                  []))
       
@@ -259,12 +313,18 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
       (do (.unread reader int-in)
           (recur nil
                  (conj field-data (read-subcomponents
-                                   reader message (apply str current-field)))
-                 []))
+                                   reader message
+                                   (if (not (nil? current-field))
+                                     (apply str current-field)
+                                     nil)))
+                 nil))
 
       ;; handle components
       (= (:component (:delimiters message)) int-in)
-      (recur (.read reader) (conj field-data (apply str current-field)) [])
+      (recur (.read reader)
+             (if (not (nil? current-field))
+               (conj field-data (apply str current-field)) field-data)
+             [""])
 
       ;; handle the end of the field
       (or (= *SEGMENT-DELIMITER* int-in)
@@ -281,13 +341,15 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
          ;; if we have current field data, add that to our field data
          (if (< 0 (count current-field))
-           (conj field-data (apply str current-field))
+           (if (not (nil? current-field))
+             (conj field-data (apply str current-field)) field-data)
            field-data)))
 
       :else
       (recur (.read reader) field-data
              (if int-in
-               (conj current-field (char int-in))
+               (if (not (nil? current-field))
+                 (conj current-field (char int-in)) [(char int-in)])
                current-field)))))
 
 (defn read-msh-segment
