@@ -1,10 +1,10 @@
 ;;
 ;; Provides functions for parsing HL7 messages.
 ;;
-
 (ns org.cooleydickinson.hl7-parser.parser2
   (:use
-   [clojure.contrib.logging])
+   [clojure.contrib.logging]
+   [org.cooleydickinson.hl7-parser.util])
   (:import
    (java.text SimpleDateFormat)
    (java.util Date)
@@ -208,7 +208,7 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
       (recur (.read reader) (conj buffer (char int-in))))))
 
 
-(defn read-subcomponents1
+(defn read-subcomponents
   "Reads in the field subcomponent data from the reader."
   [reader message data]
 

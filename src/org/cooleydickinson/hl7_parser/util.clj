@@ -3,6 +3,10 @@
 ;;
 (ns org.cooleydickinson.hl7-parser.util)
 
+(defn dump-collection
+  [coll]
+  (str "\"" (apply str (interpose "\", \"" coll)) "\""))
+
 (defn dump-field
   [field]
 
@@ -20,11 +24,18 @@
 
       (map? (first (:content field)))
       (str "(Repeating)  "
-           (apply str (doall (interpose "\n                    "
-                             (map dump-field (:content field))))))
+           (apply str (interpose "\n                    "
+                                 (map dump-field (:content field)))))
 
       :else
-      (str "(Component)  \"" (apply str (interpose "\", \"" (:content field))) "\""))))
+      (str "(Component)  "
+           (apply str
+                  (interpose ", "
+                             (map (fn [item]
+                                    (if (coll? item)
+                                      (str " (Subcomponent) " (dump-collection item))
+                                      (str "\"" item "\"")))
+                                  (:content field))))))))
 
 (defn dump-segment
   [segment]

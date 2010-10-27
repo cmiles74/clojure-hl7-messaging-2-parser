@@ -1,4 +1,4 @@
-(defproject clojure-hl7-parser "1.0-SNAPSHOT"
+(defproject clojure-hl7-parser "2.0-SNAPSHOT"
   :description "A parser for parsing HL7 messages."
   :dependencies [[org.clojure/clojure "1.2.0"]
                  [org.clojure/clojure-contrib "1.2.0"]
