@@ -4,7 +4,7 @@
 (ns org.cooleydickinson.hl7-parser.parser2
   (:use
    [clojure.contrib.logging]
-   [org.cooleydickinson.hl7-parser.util])
+   [org.cooleydickinson.hl7-parser.dump])
   (:import
    (java.text SimpleDateFormat)
    (java.util Date)
@@ -21,6 +21,9 @@ PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||88 Punchward Dr.^^Los Angeles^CA^1
 PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||20061019172717|20061019172718
 ORC|NW|20061019172719
 OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
+
+;; HL7 timestamp format
+(def *TIMESTAMP-FORMAT* (new SimpleDateFormat "yyyMMddHHmmss"))
 
 ;; HL7 Messaging v2.x segment delimiter
 (def *SEGMENT-DELIMITER* 10)
@@ -53,21 +56,37 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 ;; Emit methods used to output messages
 ;;
 
-(defn pr-delimiters
+(defn- pr-delimiters
+  "Prints an HL7 compatible text representation of the provided
+  delimiters to the current *out* stream."
   [delimiters-struct]
-  (print (str (char (:component delimiters-struct))
-              (char (:repeating delimiters-struct))
-              (char (:escape delimiters-struct))
-              (char (:subcomponent delimiters-struct)))))
+  (str (char (:component delimiters-struct))
+       (char (:repeating delimiters-struct))
+       (char (:escape delimiters-struct))
+       (char (:subcomponent delimiters-struct))))
 
-(defn pr-content
+(defn- do-pr-content
+  "Returns an HL7 compatible String representation of the provided
+  content atom. Only Date objects are afforded special handling, an
+  HL7 compatible timestamp is returned."
+  [content]
+  (if (instance? java.util.Date content)
+    (.Format *TIMESTAMP-FORMAT* content)
+    content))
+
+(defn- pr-content
+  "Returns an HL7 compatible String representation of the provided
+  field content."
   [delimiters content]
   (if (coll? content)
     (apply str
-           (interpose (char (:subcomponent delimiters)) content))
-    content))
+           (interpose (char (:subcomponent delimiters))
+                      (map do-pr-content content)))
+    (do-pr-content content)))
 
-(defn pr-field
+(defn- pr-field
+  "Returns an HL7 compatible String representation of the provided
+  field."
   [delimiters field]
   (let [content (:content field)]
     (cond
@@ -85,7 +104,9 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
              (interpose (char (:component delimiters))
                         (map (partial pr-content delimiters) content))))))
 
-(defn pr-segment
+(defn- pr-segment
+  "Returns an HL7 compatible String representation of the provided
+  segment."
   [delimiters segment]
   (if (not= "MSH" (:id segment))
 
@@ -102,6 +123,7 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
                               (rest (:fields segment))))))))
 
 (defn pr-message
+  "Prints the provided HL7 message to the current *out* stream."
   [message]
   (print (apply str
                 (interpose (char *SEGMENT-DELIMITER*)
@@ -113,26 +135,35 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 ;;
 
 (defn create-message
+  "Returns a new, empty message structure."
   []
   (struct-map message-struct :delimiters nil :segments []))
 
 (defn create-segment
+  "Returns a new, empty segment structure with the provided id."
   [id]
   (struct-map segment-struct :id id :fields []))
 
 (defn create-field
+  "Returns a new field structure populated with the provided data."
   [data]
   (struct-map field-struct :content data))
 
 (defn add-segment
+  "Adds the provided segment structure to the provided message
+  structure and returns a new message."
   [message segment]
   (assoc message :segments (conj (:segments message) segment)))
 
 (defn add-field
+  "Adds the provided field structure to the provided segment structure
+  and returns a new segment."
   [segment field]
   (assoc segment :fields (conj (:fields segment) field)))
 
 (defn add-fields
+  "Adds the provided field structures to the provided segment
+  structure and returns a new segment."
   [segment fields]
   (assoc segment :fields (into (:fields segment) fields)))
 
@@ -147,14 +178,18 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
   :class)
 
 (defmethod get-reader Readable
+  #^{:doc "Returns a new PushbackReader that wraps the provided
+Reader."}
   [reader-in]
   (PushbackReader. reader-in))
 
 (defmethod get-reader :default
+  #^{:doc "Returns a new PushbackReader that wraps a new StringReader
+   that wraps the String representation of the provided text."}
   [text-in]
   (PushbackReader. (StringReader. (apply str text-in))))
 
-(defn peek-int
+(defn- peek-int
   "Returns the next integer that will be read. You can only peek ahead
   one integer."
   [reader]
@@ -163,7 +198,7 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
     (.unread reader next-int)
     next-int))
 
-(defn expect-char-int
+(defn- expect-char-int
   "Returns true if the int-in matches the char-expect-in and false if
   it does not. An exception will be thrown if the int-in has a value
   of -1 or is an invalid character."
@@ -176,7 +211,7 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
       (throw (Exception. (str "Expected \"" (char char-expect-int) "\" but read "
                               "\"" (char int-in) "\""))))))
 
-(defn delimiter?
+(defn- delimiter?
   "Returns true if the provided Integer corresponds to the character
   value of one of this messages delimiters."
   [message int-in]
@@ -192,12 +227,13 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
           (= *SEGMENT-DELIMITER* int-in))
     true false))
 
-(defn read-delimiters
+(defn- read-delimiters
   "Parsers through the MSH segment up until the end of the first
   field (the list of delimiters) and returns a map of the delimiter
   values (delimiter-struct)."
   [reader]
 
+  ;; loop through the reader, buffer the message id and build up the delimiters
   (loop [int-in (.read reader) buffer [] delimiters (struct-map delimiters-struct) char-index 0]
 
     (cond
@@ -208,6 +244,8 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
       (= *SEGMENT-DELIMITER* int-in)
       (throw (Exception. "End of segment reached while reading MSH segment"))
 
+      ;; after reading 3 characters, make sure this is an MSH segment
+      ;; and then start reading the delimiters
       (= 3 char-index)
       (let [segment-id (apply str buffer)]
         (if (not (= "MSH" segment-id))
@@ -215,18 +253,23 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
                                   "\"" segment-id "\""))))
         (recur (.read reader) buffer (assoc delimiters :field int-in) (inc char-index)))
 
+      ;; read teh component delimiter
       (= 4 char-index)
       (recur (.read reader) buffer (assoc delimiters :component int-in) (inc char-index))
 
+      ;; read the repeating delimiter
       (= 5 char-index)
       (recur (.read reader) buffer (assoc delimiters :repeating int-in) (inc char-index))
 
+      ;; read the escape delimiter
       (= 6 char-index)
       (recur (.read reader) buffer (assoc delimiters :escape int-in) (inc char-index))
 
+      ;; read the subcomponent delimiter
       (= 7 char-index)
       (recur (.read reader) buffer (assoc delimiters :subcomponent int-in) (inc char-index))
 
+      ;; throw an exception if this isn't a field delimiter
       (= 8 char-index)
       (do
         (if (not (expect-char-int (:field delimiters) int-in))
@@ -234,13 +277,15 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
         (.unread reader int-in)
         delimiters)
 
+      ;; handle text, this is likely the segment's id
       :else
       (recur (.read reader) (conj buffer (char int-in)) delimiters (inc char-index)))))
 
-(defn read-text
+(defn- read-text
   "Reads in text up to the next delimiter character."
   [message reader]
 
+  ;; loop the reader and store the text in buffer
   (loop [int-in (.read reader) buffer []]
 
     (cond
@@ -248,29 +293,38 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
       (= int-in -1)
       (throw (Exception. "End of data reached while reading text"))
 
+      ;; if we hit a delimiter, push it back and return the text
       (delimiter? message int-in)
       (do (.unread reader int-in)
           (apply str buffer))
 
+      ;; store the text in the buffer and read the next int
       :else
       (recur (.read reader) (conj buffer (char int-in))))))
 
 
-(defn read-subcomponents
+(defn- read-subcomponents
   "Reads in the field subcomponent data from the reader."
   [reader message data]
 
+  ;; make sure the next character is a subcomponent delimiter
   (expect-char-int (:subcomponent (:delimiters message)) (.read reader))
 
+  ;; loop the reader, build up vector of subcomponents by building up
+  ;; each subcomponent
   (loop [int-in (.read reader)
          subcomponents (if (not (nil? data)) [data] [])
          subcomponent []]
 
     (cond
 
+      ;; subcomponent delimiter, add our subcomponent to our vector of
+      ;; subcomponents
       (= (:subcomponent (:delimiters message)) int-in)
       (recur (.read reader) (conj subcomponents (apply str subcomponent)) [])
 
+      ;; another delimiter type, add our last subcomponent and return
+      ;; our vector of subcomponents
       (or (= *SEGMENT-DELIMITER* int-in)
           (= (:field (:delimiters message)) int-in)
           (= (:component (:delimiters message)) int-in)
@@ -278,37 +332,45 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
       (do (.unread reader int-in)
           (conj subcomponents (apply str subcomponent)))
 
+      ;; build up the individual subcomponent
       :else
       (recur (.read reader) subcomponents (conj subcomponent (char int-in))))))
 
-(defn read-field
+(defn- read-field
   "Reads in the next field of segment data from the reader."
   [reader message]
 
+  ;; throw an exception if we aren't starting with a field or
+  ;; repeating delimiter
   (let [int-in (.read reader)]
     (if (not (or (= (:field (:delimiters message)) int-in)
                  (= (:repeating (:delimiters message)) int-in)))
       (throw (Exception. "Expected a field or repeating delimiter when reading field data"))))
 
+  ;; loop through the reader, build up a vector of fields by building
+  ;; up each individual field
   (loop [int-in (.read reader) field-data [] current-field nil]
 
     (cond
 
-      ;; handle repeating fields
+      ;; handle repeating fields by recursively calling this function
       (= (:repeating (:delimiters message)) int-in)
       (do (.unread reader int-in)
           (recur nil
+
+                 ;; decide if the current field of data should be
+                 ;; added to the last map of repeating field data
                  (let [repeating-data
                        (if (not (map? (first field-data)))
-                         [(create-field
-                           (if (not (nil? current-field))
-                             (conj field-data (apply str current-field))
-                             field-data))]
+                         [(create-field (if (not (nil? current-field))
+                                          (conj field-data (apply str current-field))
+                                          field-data))]
                          field-data)]
                    (conj repeating-data (read-field reader message)))
                  []))
       
-      ;; handle subcomponents
+      ;; handle subcomponents, add the current field to our field data
+      ;; if it's not nil
       (= (:subcomponent (:delimiters message)) int-in)
       (do (.unread reader int-in)
           (recur nil
@@ -319,14 +381,16 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
                                      nil)))
                  nil))
 
-      ;; handle components
+      ;; handle components, add the field data to our current data or
+      ;; a placeholder component if it's nil
       (= (:component (:delimiters message)) int-in)
       (recur (.read reader)
              (if (not (nil? current-field))
                (conj field-data (apply str current-field)) field-data)
              [""])
 
-      ;; handle the end of the field
+      ;; handle the end of the field or segment by returning our field
+      ;; data
       (or (= *SEGMENT-DELIMITER* int-in)
           (= (:field (:delimiters message)) int-in)
           (= -1 int-in))
@@ -345,23 +409,32 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
              (conj field-data (apply str current-field)) field-data)
            field-data)))
 
+      ;; build up the data for our current field
       :else
       (recur (.read reader) field-data
              (if int-in
+
+               ;; if the current field is nil, start a new vector of
+               ;; data
                (if (not (nil? current-field))
                  (conj current-field (char int-in)) [(char int-in)])
                current-field)))))
 
-(defn read-msh-segment
+(defn- read-msh-segment
   "Adds the \"MSH\" segment and its first field of data to the
   provided message-struct and returns the new message. This first
   field will be the list of delimiters, the provided message must
   already have a valid set of delimiters."
   [reader message]
 
+  ;; instantiate our new MSH segment and fill the first field with our
+  ;; delimiters
   (let [segment (add-field (create-segment "MSH")
-                           (create-field (with-out-str (pr-delimiters (:delimiters message)))))]
+                           (create-field
+                            (with-out-str
+                              (pr-delimiters (:delimiters message)))))]
 
+    ;; loop through the reader and build up our fields
     (loop [int-in (.read reader) fields []]
 
       (cond
@@ -369,29 +442,43 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
         (= -1 int-in)
         (throw (Exception. "End of file reached while reading segment data"))
 
+        ;; handle the end of field by reading the next field
         (= (:field (:delimiters message)) int-in)
         (do (.unread reader int-in)
             (recur nil (conj fields (read-field reader message))))
 
+        ;; handle the end of segement by adding the fields to the
+        ;; segment and then returning our segment of data
         (= *SEGMENT-DELIMITER* int-in)
         (do (.unread reader int-in)
             (add-segment message (add-fields segment fields)))
 
+        ;; keep reading in more field data
         :else
         (recur (.read reader) fields)))))
 
-(defn read-segment
+(defn- read-segment
+  "Reads in the segment of data from the reader and returns a new
+  message with the segment appended. Note that this method cannot
+  handle an MSH segment, it will fail while reading the delimiters in
+  the first field of the MSH segment."
   [reader message]
 
+  ;; make sure the next character is a segment delimiter
   (expect-char-int *SEGMENT-DELIMITER* (.read reader))
 
+  ;; read in our segment id
   (let [segment-id (read-text message reader)]
 
+    ;; throw an exception if we don't get a valid segment id
     (if (or (nil? segment-id) (not= 3 (count segment-id)))
       (throw (Exception. (str "Illegal segment id \"" segment-id "\" read"))))
 
+    ;; create our new segment
     (let [segment (create-segment segment-id)]
 
+      ;; loop through the reader and build up the fields for our
+      ;; segment
       (loop [int-in (.read reader) fields []]
 
         (cond
@@ -399,43 +486,53 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
           (= -1 int-in)
           (add-segment message (add-fields segment fields))
 
+          ;; handle segment delimiters by adding our fields to our
+          ;; segment and then adding our segment to the message
           (= *SEGMENT-DELIMITER* int-in)
           (do (.unread reader int-in)
               (add-segment message (add-fields segment fields)))
 
+          ;; handle the field delimiter by reading the next field and
+          ;; adding it to our vector of fields
           (= (:field (:delimiters message)) int-in)
           (do (.unread reader int-in)
               (recur nil (conj fields (read-field reader message))))
 
+          ;; read in more field data
           :else
           (recur (.read reader) fields))))))
 
-(defn parse-message
+(defn- parse-message
   "Parsers the data read by the reader into a valid HL7 message data
   structure (message-struct)."
   [reader]
 
+  ;; loop through the reader and parse the delimiters, the MSH segment
+  ;; and them the segments; build up the message structure
   (loop [int-in (.read reader) parsing :delimiters message (create-message)]
 
     (cond
 
+      ;; handle the end-of-file by returning our message
       (or (= -1 int-in)
           (and (nil? int-in) (= -1 (peek-int reader))))
-      (recur nil :complete message)
+      message
 
+      ;; parse out the delimiters, the loop to get the MSH segment
       (= parsing :delimiters)
       (do (.unread reader int-in)
           (recur nil :msh-segment
                  (assoc message :delimiters (read-delimiters reader))))
 
+      ;; parse out the MSH segment then loop for the other segments
       (= parsing :msh-segment)
       (recur nil :segment (read-msh-segment reader message))
 
+      ;; parse out a segment of data and add it to the message
       (= parsing :segment)
       (recur nil :segment (read-segment reader message))
 
-      :complete message
-
+      ;; loop to read more of the message
       :else
       (recur (.read reader) parsing message))))
 
