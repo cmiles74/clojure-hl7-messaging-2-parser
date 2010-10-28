@@ -27,7 +27,7 @@
   of returning the field delimiter and the list of delimiters
   respectively. If you want this data, you can get it under
   the :delimiter key of the message."
-  [index segment]
+  [segment index]
 
   (cond
 
@@ -68,4 +68,5 @@
   "Returns the field with the provided index from the segment with the
   given id of the provided message."
   [message segment-id field-index]
-  (map (partial get-segment-field field-index) (get-segments message segment-id)))
+  (map (fn [segment] (get-segment-field segment field-index))
+       (get-segments message segment-id)))
