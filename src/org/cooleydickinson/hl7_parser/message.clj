@@ -20,13 +20,12 @@
   segment. Keep in mind that this function expects the index to adhere
   to the HL7 specification where the first field of data is located at
   index 1. Another gotcha it the MSH segment, it's first field of data
-  starts at index 2.
+  starts at index 2 and that's the list of delimiters..
 
   This function will return the id of the segment if you ask for index
-  0. For the MSH segment, it will return nil for index 1 and 2 instead
-  of returning the field delimiter and the list of delimiters
-  respectively. If you want this data, you can get it under
-  the :delimiter key of the message."
+  0. For the MSH segment, it will return nil for index 1 instead of
+  returning the field delimiter. If you want the field delimiter you
+  can get it under the :delimiter key of the message."
   [segment index]
 
   (cond
@@ -43,13 +42,9 @@
       (= 1 index)
       nil
 
-      ;; index 2 should return the delimiters
-      (= 2 index)
-      nil
-
       ;; correct our index and return the field
       :else
-      (let [real-index (- index 3)]
+      (let [real-index (- index 2)]
         (nth (:fields segment) real-index)))
     
     :else
@@ -61,8 +56,11 @@
 
       ;; correct our index and return the field
       :else
-      (let [real-index (dec index)]
-        (nth (:fields segment) real-index)))))
+      (let [real-index (dec index)
+            field (nth (:fields segment) real-index)]
+        (if (map? field)
+          (:content field)
+          field)))))
 
 (defn get-field
   "Returns the field with the provided index from the segment with the
@@ -70,3 +68,28 @@
   [message segment-id field-index]
   (map (fn [segment] (get-segment-field segment field-index))
        (get-segments message segment-id)))
+
+(defn get-field-component
+  "Returns the component at the provided index from the field with the
+provided index from the segment with the given id in the provided
+message."
+  [message segment-id field-index component-index]
+  (apply (fn [results]
+           (if (list? (first results))
+             (first results)
+             results))
+         
+         (map (fn [field-data]
+
+                ;; handle repeating fields
+                (if (map? (first field-data))
+                  (for [field-in field-data]
+                    (nth (:content field-in) component-index))
+
+                  ;; return the component
+                  (nth field-data component-index)))
+
+              ;; select matching segments
+              (map (fn [segment]
+                     (get-segment-field segment field-index))
+                   (get-segments message segment-id)))))
