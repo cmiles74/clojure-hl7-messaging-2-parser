@@ -366,8 +366,14 @@ Reader."}
       (recur (.read reader) subcomponents (conj subcomponent (char int-in))))))
 
 (defn- read-field
-  "Reads in the next field of segment data from the reader."
-  [reader message]
+  "Reads in the next field of segment data from the reader. The
+  repeating flag indicates that repeating fields are okay, if the flag
+  is set to false then repeating fields will be treated the same as
+  regular fields. For instance, when parsing a message the repeating
+  flag should be set to true. When parsing the individual fields in a
+  repeating field, be sure this flag is set to false to ensure
+  accurate decoding."
+  [reader message repeating]
 
   ;; throw an exception if we aren't starting with a field or
   ;; repeating delimiter
@@ -383,7 +389,7 @@ Reader."}
     (cond
 
       ;; handle repeating fields by recursively calling this function
-      (= (:repeating (:delimiters message)) int-in)
+      (and (= (:repeating (:delimiters message)) int-in) repeating)
       (do (.unread reader int-in)
           (recur nil
 
@@ -395,7 +401,8 @@ Reader."}
                                           (conj field-data (apply str current-field))
                                           field-data))]
                          field-data)]
-                   (conj repeating-data (read-field reader message)))
+                   (println (pr-str repeating-data))
+                   (conj repeating-data (read-field reader message false)))
                  []))
       
       ;; handle subcomponents, add the current field to our field data
@@ -422,6 +429,7 @@ Reader."}
       ;; data
       (or (= *SEGMENT-DELIMITER* int-in)
           (= (:field (:delimiters message)) int-in)
+          (and (not repeating) (= (:repeating (:delimiters message)) int-in))
           (= -1 int-in))
       (do
 
@@ -478,7 +486,7 @@ Reader."}
         ;; handle the end of field by reading the next field
         (= (:field (:delimiters message)) int-in)
         (do (.unread reader int-in)
-            (recur nil (conj fields (read-field reader message))))
+            (recur nil (conj fields (read-field reader message true))))
 
         ;; handle the end of segement by adding the fields to the
         ;; segment and then returning our segment of data
@@ -529,7 +537,7 @@ Reader."}
           ;; adding it to our vector of fields
           (= (:field (:delimiters message)) int-in)
           (do (.unread reader int-in)
-              (recur nil (conj fields (read-field reader message))))
+              (recur nil (conj fields (read-field reader message true))))
 
           ;; read in more field data
           :else
