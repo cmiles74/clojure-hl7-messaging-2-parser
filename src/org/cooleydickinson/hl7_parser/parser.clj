@@ -58,11 +58,6 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
   [segment-type segment-field-number]
   segment-field-number)
 
-(defn parse-fields
-  "Parses the fields of segment into a list of values."
-  [field]
-  (seq (. field (split "\\^"))))
-
 (defn nth-or-nil
   "Returns the nth item in the sequence or nil if the sequence doesn't
   have an nth item. This differs from the standard nth function
@@ -97,6 +92,11 @@ OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
                (. (str (nth-or-nil fields 2) " "
                        (. (str (nth-or-nil fields 3) " ") trim)
                        (nth-or-nil fields 4) " ") trim)) trim)))
+
+(defn parse-fields
+  "Parses the fields of segment into a list of values."
+  [field]
+  (seq (. field (split "\\^"))))
 
 (defn parse-segment
   "Parses an HL7 message segment into a hash-map of values. The name
