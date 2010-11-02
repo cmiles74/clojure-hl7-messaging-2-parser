@@ -401,7 +401,6 @@ Reader."}
                                           (conj field-data (apply str current-field))
                                           field-data))]
                          field-data)]
-                   (println (pr-str repeating-data))
                    (conj repeating-data (read-field reader message false)))
                  []))
       
