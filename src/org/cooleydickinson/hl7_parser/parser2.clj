@@ -3,10 +3,7 @@
 ;;
 (ns org.cooleydickinson.hl7-parser.parser2
   (:use
-   [clojure.contrib.logging]
-   [org.cooleydickinson.hl7-parser.util]
-   [org.cooleydickinson.hl7-parser.dump]
-   [org.cooleydickinson.hl7-parser.message])
+   [clojure.contrib.logging])
   (:import
    (java.text SimpleDateFormat)
    (java.util Date)
