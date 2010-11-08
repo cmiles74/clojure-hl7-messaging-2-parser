@@ -24,7 +24,7 @@
 ;; timestamp format
 (def TIMESTAMP-FORMAT (new SimpleDateFormat "yyyMMddHHmmss"))
 
-(defn test-message
+(defn TEST-MESSAGE
   "Returns a test message with a unique message id."
   []
   (str "MSH|^~\\&|AcmeHIS|StJohn|CATH|StJohn|20061019172719||ORM^O01|"
