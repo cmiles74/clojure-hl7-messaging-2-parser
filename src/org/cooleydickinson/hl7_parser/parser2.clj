@@ -15,7 +15,14 @@
 (def *TIMESTAMP-FORMAT* (new SimpleDateFormat "yyyMMddHHmmss"))
 
 ;; HL7 Messaging v2.x segment delimiter
-(def *SEGMENT-DELIMITER* 10)
+(def *SEGMENT-DELIMITER* 13)
+(def *LINE-FEED* 10)
+
+(defn TEST-MESSAGE
+  "Returns a test message with a unique message id."
+  []
+  (str "MSH|^~\\&|AcmeHIS|StJohn|CATH|StJohn|20061019172719||ORM^O01|"
+       (. (new Date) getTime) "|P|2.3" (char 13) "PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||88 Punchward Dr.^^Los Angeles^CA^11221^USA|||||||" (char 13) "PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||20061019172717|20061019172718" (char 13) "ORC|NW|20061019172719" (char 13) "OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
 ;;
 ;; Data structures used to build a message
@@ -206,7 +213,7 @@ Reader."}
   [message int-in]
 
   (if (= -1 int-in)
-    (throw (Exception. "End of data reached while reading text")))
+    true)
 
   (if (or (= (:component (:delimiters message)) int-in)
           (= (:repeating (:delimiters message)) int-in)
@@ -480,7 +487,11 @@ Reader."}
       (cond
 
         (= -1 int-in)
-        (throw (Exception. "End of file reached while reading segment data"))
+        (do
+          (println (pr-str message))
+          (println (pr-str segment))
+          (println (pr-str fields))
+          (throw (Exception. "End of file reached while reading segment data")))
 
         ;; handle the end of field by reading the next field
         (= (:field (:delimiters message)) int-in)
@@ -520,7 +531,7 @@ Reader."}
       ;; loop through the reader and build up the fields for our
       ;; segment
       (loop [int-in (.read reader) fields []]
-
+        
         (cond
 
           (= -1 int-in)

@@ -27,12 +27,8 @@
 (defn TEST-MESSAGE
   "Returns a test message with a unique message id."
   []
-  (str "MSH|^~0\\&|AcmeHIS|StJohn|CATH|StJohn|20061019172719||ORM^O01|"
-       (. (new Date) getTime) "|P|2.3
-PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||88 Punchward Dr.^^Los Angeles^CA^11221^USA|||||||
-PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||20061019172717|20061019172718
-ORC|NW|20061019172719
-OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
+  (str "MSH|^~\\&|AcmeHIS|StJohn|CATH|StJohn|20061019172719||ORM^O01|"
+       (. (new Date) getTime) "|P|2.3PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||88 Punchward Dr.^^Los Angeles^CA^11221^USA|||||||PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||20061019172717|20061019172718ORC|NW|20061019172719OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876"))
 
 (def REGEX-MESSAGE-ID
      #"MSH\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|")
