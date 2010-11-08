@@ -18,7 +18,7 @@
 (def *SEGMENT-DELIMITER* 13)
 (def *LINE-FEED* 10)
 
-(defn TEST-MESSAGE
+(defn test-message
   "Returns a test message with a unique message id."
   []
   (str "MSH|^~\\&|AcmeHIS|StJohn|CATH|StJohn|20061019172719||ORM^O01|"
