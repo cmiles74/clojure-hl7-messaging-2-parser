@@ -422,7 +422,10 @@ Reader."}
       (= (:component (:delimiters message)) int-in)
       (recur (.read reader)
              (if (not (nil? current-field))
-               (conj field-data (apply str current-field)) field-data)
+               (conj field-data (apply str current-field))
+               (if (> 1 (count field-data))
+                 [""]
+                 field-data))
              [""])
 
       ;; handle the end of the field or segment by returning our field
