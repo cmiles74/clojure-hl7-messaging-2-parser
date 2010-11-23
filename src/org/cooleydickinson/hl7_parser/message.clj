@@ -62,7 +62,8 @@
       ;; correct our index and return the field
       :else
       (let [real-index (dec index)
-            field (nth (:fields segment) real-index)]
+            field (if (< real-index (count (:fields segment)))
+                      (nth (:fields segment) real-index))]
         (if (map? field)
           (:content field)
           field)))))
