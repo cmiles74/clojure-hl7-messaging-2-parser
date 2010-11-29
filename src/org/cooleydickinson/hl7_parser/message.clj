@@ -3,10 +3,12 @@
 ;;
 (ns org.cooleydickinson.hl7-parser.message
   (:use
-   [org.cooleydickinson.hl7-parser.parser2]
+   [org.cooleydickinson.hl7-parser.parser]
    [org.cooleydickinson.hl7-parser.util]
    [org.cooleydickinson.hl7-parser.dump]
-   [org.cooleydickinson.hl7-parser.message]))
+   [org.cooleydickinson.hl7-parser.message])
+  (:import
+   (java.util Date)))
 
 (defn segment-ids
   "Returns a list of the segment ids present in the message."
@@ -24,8 +26,8 @@
   "Returns the field with the provided index from the given
   segment. Keep in mind that this function expects the index to adhere
   to the HL7 specification where the first field of data is located at
-  index 1. Another gotcha it the MSH segment, it's first field of data
-  starts at index 2 and that's the list of delimiters..
+  index 1. Another gotcha in the MSH segment, the first field of data
+  starts at index 2 and that's the list of delimiters.
 
   This function will return the id of the segment if you ask for index
   0. For the MSH segment, it will return nil for index 1 instead of
@@ -95,8 +97,8 @@
 
 (defn get-field-component
   "Returns the component at the provided index from the field with the
-provided index from the segment with the given id in the provided
-message."
+  provided index from the segment with the given id in the provided
+  message."
   [message segment-id field-index component-index]
   (let [data (flatten (get-field message segment-id field-index))]
     (get-nth-field component-index data)))
@@ -114,7 +116,8 @@ message."
   [message segment-id field-index value]
 
   ;; correct our index and value (put an atom in a collection)
-  (let [field-index-fixed (dec field-index)
+  (let [field-index-fixed (if (= "MSH" segment-id)
+                            (- field-index 2) (dec field-index))
         field-value (if (coll? value) value [value])]
 
     ;; throw an error if we have an illegal HL7 index
@@ -143,3 +146,84 @@ message."
                          segment))
 
                      (:segments message)))))
+
+(defn extract-text-from-segments
+  "Extracts the text from the parsed message for the supplied index of
+  the given segments, the text will be concatenated and returned as
+  one String. For instance, this function would extract all of th text
+  from the fifth index of all of the OBX segments:
+
+      (extract-text-from-segments parsed-message 'OBX' 5)
+
+  You may pass in an optional argument that contains a character to
+  interleave between the chunks of extracted text (for instance,
+  '\n')."
+  [parsed-message segment-type index & options]
+
+  (apply str (if (first options)
+               (interpose (first options)
+                          (flatten (get-field parsed-message segment-type index)))
+               (flatten (get-field parsed-message segment-type index)))))
+
+(defn get-field-first
+  "Returns the first instance of the field with the provided index
+  from the segment with the given id of the provided message. This
+  function is handy when you know there's only one instance of a
+  particular segment (like 'MSH'), you won't have to grab the first
+  element; it will be returned by this function."
+  [parsed-message segment-id field-index]
+  (first (get-field parsed-message segment-id field-index)))
+
+(defn get-field-first-value
+  "Returns the value of the first instance of the field with the
+  provided index from the segment with the given id of the provided
+  message. This function is handy when you know there's only one
+  instance of a particular segment (like 'MSH'), you won't have to
+  grab the first element and then it's :content value; it will be
+  returned by this function."
+  [parsed-message segment-id field-index]
+  (let [field (get-field-first parsed-message segment-id field-index)]
+    (if field (pr-field (:delimiters parsed-message) field))))
+
+(defn ack-message
+  "Returns a parsed message that contains an acknowledgement message
+  for the provided parsed message, the acknowledgement message will
+  use the same delimiters. If the message indicates that no
+  acknowledgement should be returned, this function will return nil.
+
+  The 'option' should be a hash-map with the following keys:
+
+      :sending-app, :sending-facility, :production-mode, :version,
+      :text-message
+
+  These values will be used to fill out the ACK message. The
+  'ack-status' field should be a valid HL7 version 2.x acknowledgment
+  status:
+
+      AA (accepted), AE (error), AR (rejected)"
+  [options ack-status parsed-message]
+
+  ;; make sure the sender of this message is looking to receive an
+  ;; acknowledgement
+  (let [accept-ack-type (:content (get-field parsed-message "MSH" 15))]
+    (if (or (not= "NE" accept-ack-type)
+            (not= "ER" accept-ack-type))
+
+      ;; we are returning an acknowledgement
+      (create-message (:delimiters parsed-message)
+                      (create-segment "MSH"
+                                      (create-field (pr-delimiters (:delimiters parsed-message)))
+                                      (create-field [(:sending-app options)])
+                                      (create-field [(:sending-facility options)])
+                                      (get-field-first parsed-message "MSH" 3)
+                                      (get-field-first parsed-message "MSH" 4)
+                                      (create-field [(.format *TIMESTAMP-FORMAT* (new Date))])
+                                      (create-field [])
+                                      (create-field ["ACK"])
+                                      (get-field-first parsed-message "MSH" 10)
+                                      (create-field [(:production-mode options)])
+                                      (create-field [(:version options)]))
+                      (create-segment "MSA"
+                                      (create-field [ack-status])
+                                      (get-field-first parsed-message "MSH" 10)
+                                      (create-field [(:text-message options)]))))))
