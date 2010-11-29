@@ -131,7 +131,7 @@ message."
                        (if (= segment-id (:id segment))
 
                          ;; associate our new fields
-                         (assoc segment :field
+                         (assoc segment :fields
 
                                 ;; associate our new value with the
                                 ;; field collections
