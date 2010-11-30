@@ -2,7 +2,7 @@
 ;; Utility functions related to HL7 messages that don't really belong
 ;; anywhere else.
 ;;
-(ns org.cooleydickinson.hl7-parser.util
+(ns com.nervestaple.hl7-parser.util
   (:import
    (java.util Date)))
 

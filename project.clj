@@ -4,5 +4,4 @@
                  [org.clojure/clojure-contrib "1.2.0"]
                  [commons-logging/commons-logging "1.1.1"]]
   :dev-dependencies [[swank-clojure "1.2.0"]]
-  :repositories {"cdh" "http://cdhintranet01.cooley-dickinson.org/nexus/content/groups/public"}
-  :main org.cooleydickinson.hl7-parser.main)
+  :main com.nervestaple.hl7-parser.main)

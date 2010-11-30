@@ -3,19 +3,19 @@
 ;; works.
 ;;
 
-(ns org.cooleydickinson.hl7-parser.main
+(ns com.nervestaple.hl7-parser.main
   (:gen-class)
   (:use
    [clojure.contrib.logging]
-   [org.cooleydickinson.hl7-parser.parser :as parser]
-   [org.cooleydickinson.hl7-parser.message :as message]
-   [org.cooleydickinson.hl7-parser.test :as test])
+   [com.nervestaple.hl7-parser.parser :as parser]
+   [com.nervestaple.hl7-parser.message :as message]
+   [com.nervestaple.hl7-parser.test :as test])
   (:import
    (org.apache.commons.logging Log)
    (org.apache.commons.logging LogFactory)))
 
 ;; logger instance
-(def *logger* (. LogFactory getLog "org.cooleydickinson.messagehub.main"))
+(def *logger* (. LogFactory getLog "com.nervestaple.hl7-parser.main"))
 
 (defn main
   "Provides the main function invoked when the application starts. We

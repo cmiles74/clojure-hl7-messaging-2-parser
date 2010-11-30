@@ -1,7 +1,7 @@
 ;;
 ;; Provides functions for parsing HL7 messages.
 ;;
-(ns org.cooleydickinson.hl7-parser.parser
+(ns com.nervestaple.hl7-parser.parser
   (:use
    [clojure.contrib.logging])
   (:import

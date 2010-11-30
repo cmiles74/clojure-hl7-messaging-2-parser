@@ -1,12 +1,12 @@
 ;;
 ;; Functions to make it easier to work with parsed HL7 messages.
 ;;
-(ns org.cooleydickinson.hl7-parser.message
+(ns com.nervestaple.hl7-parser.message
   (:use
-   [org.cooleydickinson.hl7-parser.parser]
-   [org.cooleydickinson.hl7-parser.util]
-   [org.cooleydickinson.hl7-parser.dump]
-   [org.cooleydickinson.hl7-parser.message])
+   [com.nervestaple.hl7-parser.parser]
+   [com.nervestaple.hl7-parser.util]
+   [com.nervestaple.hl7-parser.dump]
+   [com.nervestaple.hl7-parser.message])
   (:import
    (java.util Date)))
 

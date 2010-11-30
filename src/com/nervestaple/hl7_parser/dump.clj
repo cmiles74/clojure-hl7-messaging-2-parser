@@ -2,7 +2,7 @@
 ;; Provides functions for displaying human-readable versions of HL7
 ;; messages.
 ;;
-(ns org.cooleydickinson.hl7-parser.dump)
+(ns com.nervestaple.hl7-parser.dump)
 
 (defn dump-collection
   "Returns an human-readable String representing a collection of

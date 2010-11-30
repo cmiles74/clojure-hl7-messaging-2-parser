@@ -2,10 +2,10 @@
 ;; Functions to support testing of the HL7 version 2.x parser.
 ;;
 
-(ns org.cooleydickinson.hl7-parser.test
+(ns com.nervestaple.hl7-parser.test
   (:gen-class)
   (:use
-   [org.cooleydickinson.hl7-parser.parser])
+   [com.nervestaple.hl7-parser.parser])
   (:import
    (java.util Date)))
 
