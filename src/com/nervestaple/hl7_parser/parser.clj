@@ -123,7 +123,8 @@
   (print (apply str
                 (interpose (char *SEGMENT-DELIMITER*)
                            (map (partial pr-segment (:delimiters message))
-                                (:segments message))))))
+                                (:segments message)))
+                (char *SEGMENT-DELIMITER*))))
 
 ;;
 ;; Construction methods used to build messages
