@@ -12,7 +12,7 @@
    (org.apache.commons.logging LogFactory)))
 
 ;; HL7 timestamp format
-(def *TIMESTAMP-FORMAT* (new SimpleDateFormat "yyyMMddHHmmss"))
+(def *TIMESTAMP-FORMAT* (new SimpleDateFormat "yyyyMMddHHmmss"))
 
 ;; ASCII codes of characters used to delimit and wrap messages
 (def ASCII_VT 11)
