@@ -226,7 +226,7 @@ Reader."}
           (= (:repeating (:delimiters message)) int-in)
           (= (:subcomponent (:delimiters message)) int-in)
           (= (:field (:delimiters message)) int-in)
-          (= (:escape (:delimiters message)) int-in)
+          ;(= (:escape (:delimiters message)) int-in)
           (= *SEGMENT-DELIMITER* int-in))
     true false))
 
@@ -321,9 +321,9 @@ Reader."}
       (throw (Exception. "End of data reached while reading text"))
 
       ;; we may encounter some escaped text
-      (= (:escape (:delimiters message)) int-in)
-      (do (.unread reader int-in)
-          (recur nil (conj buffer (read-escaped-text message reader))))
+      ;; (= (:escape (:delimiters message)) int-in)
+      ;; (do (.unread reader int-in)
+      ;;     (recur nil (conj buffer (read-escaped-text message reader))))
 
       ;; if we hit a delimiter, push it back and return the text
       (delimiter? message int-in)
@@ -358,10 +358,10 @@ Reader."}
       (= (:subcomponent (:delimiters message)) int-in)
       (recur (.read reader) (conj subcomponents (apply str subcomponent)) [])
 
-      (= (:escape (:delimiters message)) int-in)
-      (do (.unread reader int-in)
-          (recur nil subcomponents (conj subcomponent
-                                         (read-escaped-text message reader))))
+      ;; (= (:escape (:delimiters message)) int-in)
+      ;; (do (.unread reader int-in)
+      ;;     (recur nil subcomponents (conj subcomponent
+      ;;                                    (read-escaped-text message reader))))
 
       ;; another delimiter type, add our last subcomponent and return
       ;; our vector of subcomponents
@@ -462,11 +462,11 @@ Reader."}
              (conj field-data (apply str current-field)) field-data)
            field-data)))
 
-      (= (:escape (:delimiters message)) int-in)
-      (do (.unread reader int-in)
-          (recur nil field-data (if (not (nil? current-field))
-                                  (conj current-field (read-escaped-text message reader))
-                                  [(read-escaped-text message reader)])))
+      ;; (= (:escape (:delimiters message)) int-in)
+      ;; (do (.unread reader int-in)
+      ;;     (recur nil field-data (if (not (nil? current-field))
+      ;;                             (conj current-field (read-escaped-text message reader))
+      ;;                             [(read-escaped-text message reader)])))
 
       ;; build up the data for our current field
       :else

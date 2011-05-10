@@ -10,6 +10,18 @@
   (:import
    (java.util Date)))
 
+(def REGEX-MESSAGE-ID
+     #"MSH\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|")
+
+(defn message-id-unparsed
+  "Returns the message id for an HL7 message by doing some simple
+  regular expression matching on the message. This function does *not*
+  involve parsing the message and may be faster."
+  [message]
+  (let [matches (re-find REGEX-MESSAGE-ID message)]
+    (if (and matches (second matches))
+      (second matches))))
+
 (defn segment-ids
   "Returns a list of the segment ids present in the message."
   [message]
@@ -227,3 +239,42 @@
                                       (create-field [ack-status])
                                       (get-field-first parsed-message "MSH" 10)
                                       (create-field [(:text-message options)]))))))
+
+(defn ack-message-fallback
+  "Returns a parsed message that contains an acknowledgement message
+  for the provided parsed message, the acknowledgement message will
+  use the same delimiters. If the message indicates that no
+  acknowledgement should be returned, this function will return nil.
+
+  The 'option' should be a hash-map with the following keys:
+
+      :sending-app, :sending-facility, :production-mode, :version,
+      :text-message
+
+  These values will be used to fill out the ACK message. The
+  'ack-status' field should be a valid HL7 version 2.x acknowledgment
+  status:
+
+      AA (accepted), AE (error), AR (rejected)"
+  [options ack-status message]
+
+  ;; we are returning an acknowledgement
+  (create-message {:field 124, :component 94, :subcomponent 38,
+                   :repeating 126, :escape 92}
+                  (create-segment "MSH"
+                                  (create-field (pr-delimiters {:field 124, :component 94, :subcomponent 38,
+                                                                :repeating 126, :escape 92}))
+                                  (create-field [(:sending-app options)])
+                                  (create-field [(:sending-facility options)])
+                                  (create-field ["UNKNOWN"])
+                                  (create-field ["UNKNOWN"])
+                                  (create-field [(.format *TIMESTAMP-FORMAT* (new Date))])
+                                  (create-field [])
+                                  (create-field ["ACK"])
+                                  (message-id-unparsed message)
+                                  (create-field [(:production-mode options)])
+                                  (create-field [(:version options)]))
+                  (create-segment "MSA"
+                                  (create-field [ack-status])
+                                  (message-id-unparsed message)
+                                  (create-field [(:text-message options)]))))
