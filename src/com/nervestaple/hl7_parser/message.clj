@@ -65,7 +65,7 @@
       :else
       (let [real-index (- index 2)]
         (nth (:fields segment) real-index)))
-    
+
     :else
     (cond
 
@@ -142,7 +142,7 @@
 
       ;; map over our segments looking for the one we're changing
       :segments (map (fn [segment]
-                       
+
                        (if (= segment-id (:id segment))
 
                          ;; associate our new fields
@@ -229,7 +229,7 @@
                                       (create-field [(:sending-facility options)])
                                       (get-field-first parsed-message "MSH" 3)
                                       (get-field-first parsed-message "MSH" 4)
-                                      (create-field [(.format *TIMESTAMP-FORMAT* (new Date))])
+                                      (create-field [(.format TIMESTAMP-FORMAT (new Date))])
                                       (create-field [])
                                       (create-field ["ACK"])
                                       (get-field-first parsed-message "MSH" 10)
@@ -268,7 +268,7 @@
                                   (create-field [(:sending-facility options)])
                                   (create-field ["UNKNOWN"])
                                   (create-field ["UNKNOWN"])
-                                  (create-field [(.format *TIMESTAMP-FORMAT* (new Date))])
+                                  (create-field [(.format TIMESTAMP-FORMAT (new Date))])
                                   (create-field [])
                                   (create-field ["ACK"])
                                   (message-id-unparsed message)

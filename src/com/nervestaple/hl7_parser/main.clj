@@ -6,16 +6,11 @@
 (ns com.nervestaple.hl7-parser.main
   (:gen-class)
   (:use
-   [clojure.contrib.logging]
+   [taoensso.timbre :as timbre
+         :only (trace debug info warn error fatal spy)]
    [com.nervestaple.hl7-parser.parser :as parser]
    [com.nervestaple.hl7-parser.message :as message]
-   [com.nervestaple.hl7-parser.test :as test])
-  (:import
-   (org.apache.commons.logging Log)
-   (org.apache.commons.logging LogFactory)))
-
-;; logger instance
-(def *logger* (. LogFactory getLog "com.nervestaple.hl7-parser.main"))
+   [com.nervestaple.hl7-parser.test :as test]))
 
 (defn main
   "Provides the main function invoked when the application starts. We
@@ -44,4 +39,3 @@
   "Provides the main function needed to bootstrap the application."
   [& args]
   (main args))
-

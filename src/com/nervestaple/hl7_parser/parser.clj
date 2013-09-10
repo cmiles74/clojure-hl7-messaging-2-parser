@@ -3,16 +3,15 @@
 ;;
 (ns com.nervestaple.hl7-parser.parser
   (:use
-   [clojure.contrib.logging])
+   [taoensso.timbre :as timbre
+         :only (trace debug info warn error fatal spy)])
   (:import
    (java.text SimpleDateFormat)
    (java.util Date)
-   (java.io PushbackReader StringReader)
-   (org.apache.commons.logging Log)
-   (org.apache.commons.logging LogFactory)))
+   (java.io PushbackReader StringReader)))
 
 ;; HL7 timestamp format
-(def *TIMESTAMP-FORMAT* (new SimpleDateFormat "yyyyMMddHHmmss"))
+(def TIMESTAMP-FORMAT (new SimpleDateFormat "yyyyMMddHHmmss"))
 
 ;; ASCII codes of characters used to delimit and wrap messages
 (def ASCII_VT 11)
@@ -21,7 +20,7 @@
 (def ASCII_LF 10)
 
 ;; HL7 Messaging v2.x segment delimiter
-(def *SEGMENT-DELIMITER* ASCII_CR)
+(def SEGMENT-DELIMITER ASCII_CR)
 
 ;;
 ;; Data structures used to build a message
@@ -66,7 +65,7 @@
   HL7 compatible timestamp is returned."
   [content]
   (if (instance? java.util.Date content)
-    (.Format *TIMESTAMP-FORMAT* content)
+    (.Format TIMESTAMP-FORMAT content)
     content))
 
 (defn- pr-content
@@ -121,10 +120,10 @@
   "Prints the provided HL7 message to the current *out* stream."
   [message]
   (print (apply str
-                (interpose (char *SEGMENT-DELIMITER*)
+                (interpose (char SEGMENT-DELIMITER)
                            (map (partial pr-segment (:delimiters message))
                                 (:segments message))))
-         (char *SEGMENT-DELIMITER*)))
+         (char SEGMENT-DELIMITER)))
 
 ;;
 ;; Construction methods used to build messages
@@ -196,7 +195,7 @@ Reader."}
   "Returns the next integer that will be read. You can only peek ahead
   one integer."
   [reader]
-  
+
   (let [next-int (.read reader)]
     (.unread reader next-int)
     next-int))
@@ -227,7 +226,7 @@ Reader."}
           (= (:subcomponent (:delimiters message)) int-in)
           (= (:field (:delimiters message)) int-in)
           ;(= (:escape (:delimiters message)) int-in)
-          (= *SEGMENT-DELIMITER* int-in))
+          (= SEGMENT-DELIMITER int-in))
     true false))
 
 (defn- read-delimiters
@@ -244,7 +243,7 @@ Reader."}
       (= -1 int-in)
       (throw (Exception. "End of file reached while reading MSH segment"))
 
-      (= *SEGMENT-DELIMITER* int-in)
+      (= SEGMENT-DELIMITER int-in)
       (throw (Exception. "End of segment reached while reading MSH segment"))
 
       ;; after reading 3 characters, make sure this is an MSH segment
@@ -365,7 +364,7 @@ Reader."}
 
       ;; another delimiter type, add our last subcomponent and return
       ;; our vector of subcomponents
-      (or (= *SEGMENT-DELIMITER* int-in)
+      (or (= SEGMENT-DELIMITER int-in)
           (= (:field (:delimiters message)) int-in)
           (= (:component (:delimiters message)) int-in)
           (= (:repeating (:delimiters message)) int-in))
@@ -417,7 +416,7 @@ Reader."}
                          field-data)]
                    (conj repeating-data (read-field reader message false)))
                  []))
-      
+
       ;; handle subcomponents, add the current field to our field data
       ;; if it's not nil
       (= (:subcomponent (:delimiters message)) int-in)
@@ -443,7 +442,7 @@ Reader."}
 
       ;; handle the end of the field or segment by returning our field
       ;; data
-      (or (= *SEGMENT-DELIMITER* int-in)
+      (or (= SEGMENT-DELIMITER int-in)
           (= (:field (:delimiters message)) int-in)
           (and (not repeating) (= (:repeating (:delimiters message)) int-in))
           (= -1 int-in))
@@ -510,7 +509,7 @@ Reader."}
 
         ;; handle the end of segement by adding the fields to the
         ;; segment and then returning our segment of data
-        (= *SEGMENT-DELIMITER* int-in)
+        (= SEGMENT-DELIMITER int-in)
         (do (.unread reader int-in)
             (add-segment message (add-fields segment fields)))
 
@@ -526,7 +525,7 @@ Reader."}
   [reader message]
 
   ;; make sure the next character is a segment delimiter
-  (expect-char-int *SEGMENT-DELIMITER* (.read reader))
+  (expect-char-int SEGMENT-DELIMITER (.read reader))
 
   ;; read in our segment id
   (let [segment-id (read-text message reader)]
@@ -541,7 +540,7 @@ Reader."}
       ;; loop through the reader and build up the fields for our
       ;; segment
       (loop [int-in (.read reader) fields []]
-        
+
         (cond
 
           (= -1 int-in)
@@ -549,7 +548,7 @@ Reader."}
 
           ;; handle segment delimiters by adding our fields to our
           ;; segment and then adding our segment to the message
-          (= *SEGMENT-DELIMITER* int-in)
+          (= SEGMENT-DELIMITER int-in)
           (do (.unread reader int-in)
               (add-segment message (add-fields segment fields)))
 
