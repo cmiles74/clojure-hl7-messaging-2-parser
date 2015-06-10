@@ -4,7 +4,8 @@
 (ns com.nervestaple.hl7-parser.parser
   (:use
    [taoensso.timbre :as timbre
-         :only (trace debug info warn error fatal spy)])
+         :only (trace debug info warn error fatal spy)]
+    [clojure.string :as string :only (trim)])
   (:import
    (java.text SimpleDateFormat)
    (java.util Date)
@@ -528,7 +529,7 @@ Reader."}
   (expect-char-int SEGMENT-DELIMITER (.read reader))
 
   ;; read in our segment id
-  (let [segment-id (read-text message reader)]
+  (let [segment-id (string/trim (read-text message reader))]
 
     ;; throw an exception if we don't get a valid segment id
     (if (or (nil? segment-id) (not= 3 (count segment-id)))
