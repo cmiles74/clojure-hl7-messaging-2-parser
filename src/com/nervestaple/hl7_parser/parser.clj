@@ -117,14 +117,19 @@
                          (map (partial pr-field delimiters)
                               (rest (:fields segment))))))))
 
+(defn str-message
+  "Returns the provided HL7 message as a string."
+  [message]
+  (str (apply str
+              (interpose (char SEGMENT-DELIMITER)
+                         (map (partial pr-segment (:delimiters message))
+                              (:segments message))))
+       (char SEGMENT-DELIMITER)))
+
 (defn pr-message
   "Prints the provided HL7 message to the current *out* stream."
   [message]
-  (print (apply str
-                (interpose (char SEGMENT-DELIMITER)
-                           (map (partial pr-segment (:delimiters message))
-                                (:segments message))))
-         (char SEGMENT-DELIMITER)))
+  (print (str-message message)))
 
 ;;
 ;; Construction methods used to build messages
