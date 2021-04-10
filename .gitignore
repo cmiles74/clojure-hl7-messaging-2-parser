@@ -11,3 +11,5 @@ lib/*
 target/*
 .cake
 .nrepl-port
+pom.xml
+pom.xml.*
