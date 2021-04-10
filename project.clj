@@ -1,4 +1,4 @@
-(defproject clojure-hl7-parser "3.4.1"
+(defproject clojure-hl7-parser "3.4.2"
   :description "A parser for parsing HL7 messages."
-  :dependencies [[com.taoensso/timbre "5.1.2"]]
+  :dependencies [[com.taoensso/timbre "5.1.0"]]
   :main com.nervestaple.hl7-parser.main)
