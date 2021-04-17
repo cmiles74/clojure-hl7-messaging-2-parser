@@ -111,7 +111,7 @@
                          (map (partial pr-field delimiters) (:fields segment)))))
 
       (str (:id segment) (char (:field delimiters))
-           (:content (first (:fields segment))) (char (:field delimiters))
+           (first (:content (first (:fields segment)))) (char (:field delimiters))
        (apply str
               (interpose (char (:field delimiters))
                          (map (partial pr-field delimiters)
@@ -135,6 +135,21 @@
 ;; Construction methods used to build messages
 ;;
 
+(defn convert-values
+  "If provided a list of values, any in items are replaced with an empty string.
+  When provided a single value a list with that value will be returned or an
+  empty list of that value is nil."
+  [values]
+  (cond
+    (sequential? values)
+    (replace {nil ""} values)
+
+    (nil? values)
+    []
+
+    :else
+    [values]))
+
 (defn create-empty-message
   "Returns a new, empty message structure."
   []
@@ -155,7 +170,7 @@
 (defn create-field
   "Returns a new field structure populated with the provided data."
   [data]
-  (struct-map field-struct :content data))
+  (struct-map field-struct :content (convert-values data)))
 
 (defn add-segment
   "Adds the provided segment structure to the provided message
