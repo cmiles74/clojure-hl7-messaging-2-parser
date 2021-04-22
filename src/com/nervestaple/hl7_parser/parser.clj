@@ -320,7 +320,7 @@
         (if (not (or (= "MSH" segment-id)
                      (= "FHS" segment-id)))
           (throw (Exception. (str "Expected first segment to have the id of "
-                                  "MSH\" or \"FHS\"  but found \""
+                                  "\"MSH\" or \"FHS\"  but found \""
                                   segment-id "\""))))
         (.unread reader int-in)
         {:segment-id segment-id

@@ -1,5 +1,6 @@
 (ns com.nervestaple.hl7-parser.batch
   (:require
+   [clojure.java.io :as io]
    [clojure.string :as string]
    [com.nervestaple.hl7-parser.parser :as parser])
   (:import
@@ -20,13 +21,16 @@
   [text] (line-seq (BufferedReader. (StringReader. text))))
 
 (defn conj-not-empty
-  "Addes the supplied item to the given sequence only if it is not blank."
+  "Addes the supplied string to the given sequence only if it is not blank."
   [seq item]
   (if (not (string/blank? item))
     (conj seq item)
     seq))
 
 (defn read-message
+  "Reads lines from the provided sequence and accumulates one HL7 message.
+  Returns a vector where the first item is the message and the second the
+  remaining lines in the sequence (or nil if all lines have been read)."
   [lines-in]
   (loop [line-this (first lines-in) message [] lines (rest lines-in)]
     (cond
@@ -53,7 +57,7 @@
       [(apply str (interpose (char parser/ASCII_CR) message))
        (cons line-this lines)]
 
-      ;; accumilate the current message
+      ;; accumulate the current message
       :else
       (recur (first lines)
              (conj-not-empty message line-this)
@@ -85,11 +89,18 @@
     (parser/parse message)))
 
 (defn read-messages
-  "Parses a sequence of lines into a sequence of HL7 messaging messages. If the
-  provided sequence has header or trailer messages, those are parsed as well. "
-  ([lines-in]
-   (let [[message lines] (read-message lines-in)]
-     (read-messages message lines)))
+  "Reads through a set of data and returns a lazy sequence of parsed HL7
+  messaging messages. If a sequence is provided it will be read directly
+  otherwise a reader will be opened on the provided data."
+  ([data-in]
+   (cond
+     (coll? data-in)
+     (let [[message lines] (read-message data-in)]
+       (read-messages message lines))
+
+     :else
+     (let [lines (get-lines data-in)]
+       (read-messages lines))))
   ([message lines]
    (cond
      (nil? message)
@@ -102,3 +113,11 @@
      (lazy-seq (cons (parse-message message)
                      (let [[message-next rest-lines] (read-message lines)]
                        (read-messages message-next rest-lines)))))))
+
+(defn filter-segment
+  "Returns a lazy sequence of messages that have a matching segment id in their
+  first segment."
+  [segment-id parsed-messages]
+  (filter #(= segment-id (:id (first (:segments %)))) parsed-messages))
+
+
