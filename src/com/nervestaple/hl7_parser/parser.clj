@@ -103,7 +103,9 @@
   "Returns an HL7 compatible String representation of the provided
   segment."
   [delimiters segment]
-  (if (not= "MSH" (:id segment))
+  (if (or (not= "FHS" (:id segment))
+          (not= "BHS" (:id segment))
+          (not= "MSH" (:id segment)))
 
       (str (:id segment) (char (:field delimiters))
        (apply str
@@ -251,49 +253,42 @@ Reader."}
     true false))
 
 (defn- read-delimiters
-  "Parsers through the MSH segment up until the end of the first
-  field (the list of delimiters) and returns a map of the delimiter
-  values (delimiter-struct)."
+  "Parses through the delimiters and returns a map with those
+  delimiters (delimiter-struct)."
   [reader]
-
   ;; loop through the reader, buffer the message id and build up the delimiters
-  (loop [int-in (.read reader) buffer [] delimiters (struct-map delimiters-struct) char-index 0]
+  (loop [int-in (.read reader) buffer [] segment-id nil delimiters (struct-map delimiters-struct) char-index 0]
 
     (cond
 
       (= -1 int-in)
-      (throw (Exception. "End of file reached while reading MSH segment"))
+      (throw (Exception. "End of file reached while reading delimiters for segment"))
 
       (= SEGMENT-DELIMITER int-in)
-      (throw (Exception. "End of segment reached while reading MSH segment"))
+      (throw (Exception. "End of segment reached while reading delmiters"))
 
-      ;; after reading 3 characters, make sure this is an MSH segment
-      ;; and then start reading the delimiters
-      (= 3 char-index)
-      (let [segment-id (apply str buffer)]
-        (if (not (= "MSH" segment-id))
-          (throw (Exception. (str "Expected first segment to have the id of \"MSH\" but found "
-                                  "\"" segment-id "\""))))
-        (recur (.read reader) buffer (assoc delimiters :field int-in) (inc char-index)))
+      ;; read the field delimiter
+      (= 0 char-index)
+      (recur (.read reader) buffer segment-id (assoc delimiters :field int-in) (inc char-index))
 
-      ;; read teh component delimiter
-      (= 4 char-index)
-      (recur (.read reader) buffer (assoc delimiters :component int-in) (inc char-index))
+      ;; read the component delimiter
+      (= 1 char-index)
+      (recur (.read reader) buffer segment-id (assoc delimiters :component int-in) (inc char-index))
 
       ;; read the repeating delimiter
-      (= 5 char-index)
-      (recur (.read reader) buffer (assoc delimiters :repeating int-in) (inc char-index))
+      (= 2 char-index)
+      (recur (.read reader) buffer segment-id (assoc delimiters :repeating int-in) (inc char-index))
 
       ;; read the escape delimiter
-      (= 6 char-index)
-      (recur (.read reader) buffer (assoc delimiters :escape int-in) (inc char-index))
+      (= 3 char-index)
+      (recur (.read reader) buffer segment-id (assoc delimiters :escape int-in) (inc char-index))
 
       ;; read the subcomponent delimiter
-      (= 7 char-index)
-      (recur (.read reader) buffer (assoc delimiters :subcomponent int-in) (inc char-index))
+      (= 4 char-index)
+      (recur (.read reader) buffer segment-id (assoc delimiters :subcomponent int-in) (inc char-index))
 
       ;; throw an exception if this isn't a field delimiter
-      (= 8 char-index)
+      (= 5 char-index)
       (do
         (if (not (expect-char-int (:field delimiters) int-in))
           (throw (Exception. "Expected beginning of next segment but read more delimiter data")))
@@ -302,7 +297,41 @@ Reader."}
 
       ;; handle text, this is likely the segment's id
       :else
-      (recur (.read reader) (conj buffer (char int-in)) delimiters (inc char-index)))))
+      (recur (.read reader) (conj buffer (char int-in)) segment-id delimiters (inc char-index)))))
+
+(defn- read-segment-delimiters
+  "Parsers through the MSH or FHS segment up until the end of the first field (the
+  list of delimiters) and returns a map with the segment id (:segment-id) and
+  the the delimiter values (:delimiters with the delimiter-struct)."
+  [reader]
+
+  ;; loop through the reader, buffer the message id and build up the delimiters
+  (loop [int-in (.read reader) buffer [] segment-id nil delimiters (struct-map delimiters-struct) char-index 0]
+
+    (cond
+
+      (= -1 int-in)
+      (throw (Exception. "End of file reached while reading MSH or FHS segment"))
+
+      (= SEGMENT-DELIMITER int-in)
+      (throw (Exception. "End of segment reached while reading MSH or FHS segment"))
+
+      ;; after reading 3 characters, make sure this is an MSH segment
+      ;; and then start reading the delimiters
+      (= 3 char-index)
+      (let [segment-id (apply str buffer)]
+        (if (not (or (= "MSH" segment-id)
+                     (= "FHS" segment-id)))
+          (throw (Exception. (str "Expected first segment to have the id of "
+                                  "MSH\" or \"FHS\"  but found \""
+                                  segment-id "\""))))
+        (.unread reader int-in)
+        {:segment-id segment-id
+         :delimiters (read-delimiters reader)})
+
+      ;; handle text, this is likely the segment's id
+      :else
+      (recur (.read reader) (conj buffer (char int-in)) segment-id delimiters (inc char-index)))))
 
 (defn- read-escaped-text
   "Reads in escaped text to the next escape delimiter character."
@@ -499,17 +528,17 @@ Reader."}
                  (conj current-field (char int-in)) [(char int-in)])
                current-field)))))
 
-(defn- read-msh-segment
-  "Adds the \"MSH\" segment and its first field of data to the
-  provided message-struct and returns the new message. This first
-  field will be the list of delimiters, the provided message must
-  already have a valid set of delimiters."
-  [reader message]
+(defn- read-msh-fhs-segment
+  "Adds the \"MSH\" or \"BHS\" segment and its first field of data to the provided
+  message-struct and returns the new message. This first field will be the list
+  of delimiters, the provided message must already have a valid set of
+  delimiters."
+  [segment-id reader message]
 
   ;; instantiate our new MSH segment and fill the first field with our
   ;; delimiters
-  (let [segment (add-field (create-segment "MSH")
-                           (create-field(pr-delimiters (:delimiters message))))]
+  (let [segment (add-field (create-segment segment-id)
+                           (create-field (pr-delimiters (:delimiters message))))]
 
     ;; loop through the reader and build up our fields
     (loop [int-in (.read reader) fields []]
@@ -556,7 +585,10 @@ Reader."}
       (throw (Exception. (str "Illegal segment id \"" segment-id "\" read"))))
 
     ;; create our new segment
-    (let [segment (create-segment segment-id)]
+    (let [segment (if (= "BHS" segment-id)
+                    (add-field (create-segment segment-id)
+                               (create-field (pr-delimiters (read-delimiters reader))))
+                    (create-segment segment-id))]
 
       ;; loop through the reader and build up the fields for our
       ;; segment
@@ -590,7 +622,7 @@ Reader."}
 
   ;; loop through the reader and parse the delimiters, the MSH segment
   ;; and them the segments; build up the message structure
-  (loop [int-in (.read reader) parsing :delimiters message (create-empty-message)]
+  (loop [int-in (.read reader) parsing :delimiters segment-id nil message (create-empty-message)]
 
     (cond
 
@@ -602,20 +634,22 @@ Reader."}
       ;; parse out the delimiters, then loop to get the MSH segment
       (= parsing :delimiters)
       (do (.unread reader int-in)
-          (recur nil :msh-segment
-                 (assoc message :delimiters (read-delimiters reader))))
+          (let [delimiters (read-segment-delimiters reader)]
+            (recur nil :header-segment
+                   (:segment-id delimiters)
+                   (assoc message :delimiters (:delimiters delimiters)))))
 
-      ;; parse out the MSH segment then loop for the other segments
-      (= parsing :msh-segment)
-      (recur nil :segment (read-msh-segment reader message))
+      ;; parse out the header (MSH or FHS) segment then loop for the other segments
+      (= parsing :header-segment)
+      (recur nil :segment segment-id (read-msh-fhs-segment segment-id reader message))
 
       ;; parse out a segment of data and add it to the message
       (= parsing :segment)
-      (recur nil :segment (read-segment reader message))
+      (recur nil :segment segment-id (read-segment reader message))
 
       ;; loop to read more of the message
       :else
-      (recur (.read reader) parsing message))))
+      (recur (.read reader) parsing segment-id message))))
 
 (defn parse
   "Reads data from the provided source (a Reader, String, etc.) and

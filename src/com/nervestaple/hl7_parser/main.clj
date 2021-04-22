@@ -7,9 +7,11 @@
   (:gen-class)
   (:use
    [taoensso.timbre :as timbre
-         :only (trace debug info warn error fatal spy)]
+    :only (trace debug info warn error fatal spy)]
+   [clojure.java.io :as io]
    [com.nervestaple.hl7-parser.parser :as parser]
    [com.nervestaple.hl7-parser.message :as message]
+   [com.nervestaple.hl7-parser.batch :as batch]
    [com.nervestaple.hl7-parser.test :as test]))
 
 (defn main
