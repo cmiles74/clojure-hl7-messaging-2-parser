@@ -200,19 +200,16 @@
   "Returns a PushBackReader for the provided Object. We want to wrap
   another Reader but we'll cast to a String and read that if
   required."
-  :class)
+  class)
 
-(defmethod get-reader Readable
-  #^{:doc "Returns a new PushbackReader that wraps the provided
-Reader."}
-  [reader-in]
-  (PushbackReader. reader-in))
+(defmethod get-reader java.io.BufferedReader
+  [reader-in] (PushbackReader. reader-in))
+
+(defmethod get-reader java.lang.Readable
+  [reader-in] (PushbackReader. reader-in))
 
 (defmethod get-reader :default
-  #^{:doc "Returns a new PushbackReader that wraps a new StringReader
-   that wraps the String representation of the provided text."}
-  [text-in]
-  (PushbackReader. (StringReader. (apply str text-in))))
+  [text-in] (PushbackReader. (StringReader. (apply str text-in))))
 
 (defn- peek-int
   "Returns the next integer that will be read. You can only peek ahead
