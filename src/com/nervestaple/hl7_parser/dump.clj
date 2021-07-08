@@ -43,34 +43,53 @@
                                   (:content field))))))))
 
 (defn dump-segment
-  "Returns an human-readable String representing the content of the
-  segment."
-  [segment]
+  "Returns an human-readable String representing the content of the segment. If
+  the show-nulls parameter is provided and is true, null fields will also be
+  displayed."
+  ([delimiters segment]
+   (dump-segment delimiters segment false))
+  ([delimiters segment show-nulls]
 
-  (println (str "ID: " (:id segment)))
+  (println (str "Segment ID: " (:id segment)))
+  (println "Index HL7 Index   Type        Content")
+  (println "----- ---------   ----------- -----------")
+  (let [segment-index-start (if (= "MSH" (:id segment)) 2 1)]
+    (loop [field (first (:fields segment))
+           fields (rest (:fields segment))
+           index 0
+           segment-index segment-index-start]
 
-  (loop [field (first (:fields segment)) fields (rest (:fields segment)) index 0]
+      (when (and (= "MSH" (:id segment)) (= 0 index))
+        (println (str "   -        1     (Atom)       \""
+                      (char (:field delimiters)) "\"")))
 
-    (println (str "  "
-                  (if (> 10 index)
-                    (str " " index) index)
-                  ":  " (dump-field field)))
-    
-    (if (seq fields)
-      (recur (first fields) (rest fields) (inc index)))))
+      (when (or (< 0 (count (:content field))) show-nulls)
+        (println (str "  "
+                      (if (> 10 index)
+                        (str " " index) index)
+                      "       "
+                      (if (> 10 segment-index)
+                        (str " " segment-index) segment-index)
+                      "     " (dump-field field))))
+
+      (if (seq fields)
+        (recur (first fields)
+               (rest fields)
+               (inc index)
+               (inc segment-index)))))))
 
 (defn dump-delimiters
   "Returns a human-readable String representing the message's delimiters."
   [delimiters]
 
   (println "Delimiters: ")
-  
+
   (if (:field delimiters)
     (println "  Field:         " (char (:field delimiters))))
 
   (if (:component delimiters)
     (println "  Component:     " (char (:component delimiters))))
-    
+
   (if (:repeating delimiters)
     (println "  Repeating:     " (char (:repeating delimiters))))
 
@@ -81,13 +100,16 @@
     (println "  Subcomponent:  " (char (:subcomponent delimiters)))))
 
 (defn dump
-  "Prints a human-readable version of the HL7 message to the current
-  *out* stream."
-  [parsed-message]
+  "Prints a human-readable version of the HL7 message to the current *out* stream.
+  If the show-nulls parameter is provided and is true, null fields will also be
+  displayed."
+  ([parsed-message]
+   (dump parsed-message false))
+  ([parsed-message show-nulls]
 
-  (dump-delimiters (:delimiters parsed-message))
-  (println)
+   (dump-delimiters (:delimiters parsed-message))
+   (println)
 
-  (doseq [segment (:segments parsed-message)]
-    (dump-segment segment)
-    (println)))
+   (doseq [segment (:segments parsed-message)]
+     (dump-segment (:delimiters parsed-message) segment show-nulls)
+     (println))))

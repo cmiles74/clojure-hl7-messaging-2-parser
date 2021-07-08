@@ -45,42 +45,49 @@
   0. For the MSH segment, it will return nil for index 1 instead of
   returning the field delimiter. If you want the field delimiter you
   can get it under the :delimiter key of the message."
+  ([segment index]
+   (get-segment-field segment index false))
+  ([segment index raw?]
+
+   (cond
+
+     ;; handle MSH differently
+     (= "MSH" (:id segment))
+     (cond
+
+       ;; index 0 returns the segment id
+       (= 0 index)
+       (:id segment)
+
+       ;; index 1 should return the field delimiter
+       (= 1 index)
+       nil
+
+       ;; correct our index and return the field
+       :else
+       (let [real-index (- index 2)]
+         (nth (:fields segment) real-index)))
+
+     :else
+     (cond
+
+       ;; index 0 returns the segment id
+       (= 0 index)
+       (:id segment)
+
+       ;; correct our index and return the field
+       :else
+       (let [real-index (dec index)
+             field (if (< real-index (count (:fields segment)))
+                     (nth (:fields segment) real-index))]
+         (if raw? field
+             (if (map? field)
+               (:content field)
+               field)))))))
+
+(defn get-segment-field-raw
   [segment index]
-
-  (cond
-
-    ;; handle MSH differently
-    (= "MSH" (:id segment))
-    (cond
-
-      ;; index 0 returns the segment id
-      (= 0 index)
-      (:id segment)
-
-      ;; index 1 should return the field delimiter
-      (= 1 index)
-      nil
-
-      ;; correct our index and return the field
-      :else
-      (let [real-index (- index 2)]
-        (nth (:fields segment) real-index)))
-
-    :else
-    (cond
-
-      ;; index 0 returns the segment id
-      (= 0 index)
-      (:id segment)
-
-      ;; correct our index and return the field
-      :else
-      (let [real-index (dec index)
-            field (if (< real-index (count (:fields segment)))
-                      (nth (:fields segment) real-index))]
-        (if (map? field)
-          (:content field)
-          field)))))
+  (get-segment-field segment index true))
 
 (defn get-field
   "Returns the field with the provided index from the segment with the
@@ -194,8 +201,9 @@
   grab the first element and then it's :content value; it will be
   returned by this function."
   [parsed-message segment-id field-index]
-  (let [field (get-field-first parsed-message segment-id field-index)]
-    (if field (pr-field (:delimiters parsed-message) field))))
+  (let [field (first (map #(get-segment-field-raw % field-index)
+                          (get-segments parsed-message segment-id)))]
+    (pr-field (:delimiters parsed-message) field)))
 
 (defn ack-message
   "Returns a parsed message that contains an acknowledgement message
