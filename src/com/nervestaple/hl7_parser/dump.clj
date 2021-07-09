@@ -24,23 +24,24 @@
 
       (= 1 items)
       (if (map? (first (:content field)))
-        (str "(Repeating)  " (dump-field (first (:content field))))
-        (str "(Atom)       \"" (first (:content field)) "\""))
+        (str "Repeating    \n             " (dump-field (first (:content field))))
+        (str "Atom         \"" (first (:content field)) "\""))
 
       (map? (first (:content field)))
-      (str "(Repeating)  "
-           (apply str (interpose "\n                    "
+      (str "Repeating    \n                  "
+           (apply str (interpose "\n                  "
                                  (map dump-field (:content field)))))
 
       :else
-      (str "(Component)  "
+      (str "Component    "
            (apply str
                   (interpose ", "
-                             (map (fn [item]
+                             (map (fn [[index item]]
                                     (if (coll? item)
-                                      (str " (Subcomponent) " (dump-collection item))
-                                      (str "\"" item "\"")))
-                                  (:content field))))))))
+                                      (str " Subcomponent   " (dump-collection item))
+                                      (str (inc index) ": \"" item "\"")))
+                                  (map-indexed #(vector %1 %2)
+                                               (:content field)))))))))
 
 (defn dump-segment
   "Returns an human-readable String representing the content of the segment. If
@@ -60,7 +61,7 @@
            segment-index segment-index-start]
 
       (when (and (= "MSH" (:id segment)) (= 0 index))
-        (println (str "   -        1     (Atom)       \""
+        (println (str "   -        1     Atom         \""
                       (char (:field delimiters)) "\"")))
 
       (when (or (< 0 (count (:content field))) show-nulls)

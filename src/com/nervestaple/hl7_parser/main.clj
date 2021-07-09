@@ -11,7 +11,8 @@
    [com.nervestaple.hl7-parser.parser :as parser]
    [com.nervestaple.hl7-parser.message :as message]
    [com.nervestaple.hl7-parser.batch :as batch]
-   [com.nervestaple.hl7-parser.test :as test]))
+   [com.nervestaple.hl7-parser.test :as test]
+   [com.nervestaple.hl7-parser.dump :as dump]))
 
 (defn main
   "Provides the main function invoked when the application starts. We
