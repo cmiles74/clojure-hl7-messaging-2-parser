@@ -1,4 +1,0 @@
-#!/bin/bash
-xrdb -merge /developer/.Xresources
-/usr/bin/urxvt -title "Shell" -geometry 100x24 -e tmux 
-
