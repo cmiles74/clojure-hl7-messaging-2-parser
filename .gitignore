@@ -16,3 +16,5 @@ pom.xml.*
 *-local
 *-local-*
 .lein-*
+.clj-kondo
+.lsp
