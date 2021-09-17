@@ -1,4 +1,9 @@
 {
-    "build": { "dockerfile": "Dockerfile"},
-    "forwardPorts": [8734, 2222]
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "extensions": [
+        "borkdude.clj-kondo",
+        "betterthantomorrow.calva"
+    ]
 }
