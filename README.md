@@ -85,12 +85,10 @@ already parsed.
     {:field 124, :component 94, :subcomponent 38, :repeating 126,
     :escape 92}
 
-Delimiters are stored by their character code in a hashmap. You can
-use the "delimiters-struct" in the "parser" namespace if you need to
-setup your own.
+Delimiters are stored by their character code in a hashmap. You can create a map
+if you need to setup your own.
 
-    user> (struct-map parser/delimiters-struct :field 124
-    :component 94 :subcomponent 38 repeating 126 escape 92)
+    user> {:field 124 :component 94 :subcomponent 38 repeating 126 escape 92}
 
 We have functions for building up messages in the "message" namespace.
 
