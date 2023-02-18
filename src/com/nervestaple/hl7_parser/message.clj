@@ -142,31 +142,30 @@
         field-value (if (coll? value) value [value])]
 
     ;; throw an error if we have an illegal HL7 index
-    (if (< field-index-fixed 0)
+    (when (< field-index-fixed 0)
       (throw (Exception. "The first field is at index 1")))
 
     ;; create a whole new message
-    (struct-map message-struct
-      :delimiters (:delimiters message)
+    {:delimiters (:delimiters message)
 
       ;; map over our segments looking for the one we're changing
-      :segments (map (fn [segment]
+     :segments (map (fn [segment]
 
-                       (if (= segment-id (:id segment))
+                      (if (= segment-id (:id segment))
 
                          ;; associate our new fields
-                         (assoc segment :fields
+                        (assoc segment :fields
 
                                 ;; associate our new value with the
                                 ;; field collections
-                                (assoc (:fields segment)
-                                  field-index-fixed
-                                  (create-field field-value)))
+                               (assoc (:fields segment)
+                                      field-index-fixed
+                                      (create-field field-value)))
 
                          ;; return the segment unaltered
-                         segment))
+                        segment))
 
-                     (:segments message)))))
+                    (:segments message))}))
 
 (defn extract-text-from-segments
   "Extracts the text from the parsed message for the supplied index of

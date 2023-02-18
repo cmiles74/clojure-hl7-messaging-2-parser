@@ -22,41 +22,17 @@
 (def SEGMENT-DELIMITER ASCII_CR)
 
 ;;
-;; Data structures used to build a message
-;;
-
-(defstruct
-    #^{:doc "Structure for HL7 message delimiters"}
-  delimiters-struct :field :component :subcomponent :repeating :escape)
-
-(defstruct
-    #^{:doc "Structure for an HL7 message"}
-  message-struct :delimiters :segments)
-
-(defstruct
-    #^{:doc "Structure for an HL7 segment"}
-  segment-struct :id :fields)
-
-(defstruct
-    #^{:doc "Structure for an HL7 field. The :content will either be
-     at atom, an array of atoms (indicating a field with components),
-     an array of arrays of atoms (indicating a field with components
-     and sub-components) or an array of more field
-     structures (indicating a repeating field)."}
-  field-struct :content)
-
-;;
 ;; Emit methods used to output messages
 ;;
 
 (defn pr-delimiters
   "Prints an HL7 compatible text representation of the provided
   delimiters to the current *out* stream."
-  [delimiters-struct]
-  (str (char (:component delimiters-struct))
-       (char (:repeating delimiters-struct))
-       (char (:escape delimiters-struct))
-       (char (:subcomponent delimiters-struct))))
+  [delimiters]
+  (str (char (:component delimiters))
+       (char (:repeating delimiters))
+       (char (:escape delimiters))
+       (char (:subcomponent delimiters))))
 
 (defn- do-pr-content
   "Returns an HL7 compatible String representation of the provided
@@ -151,42 +127,41 @@
     [values]))
 
 (defn create-empty-message
-  "Returns a new, empty message structure."
+  "Returns a new, empty message map."
   []
-  (struct-map message-struct :delimiters nil :segments []))
+  {:delimiters nil :segments []})
 
 (defn create-message
-  "Returns a new, empty message structure."
+  "Returns a new, empty message map."
   [delimiters & segments]
-  (struct-map message-struct :delimiters delimiters
-              :segments (if (< 0 (count segments)) (vec segments) [])))
+  {:delimiters delimiters
+   :segments (if (< 0 (count segments)) (vec segments) [])})
 
 (defn create-segment
-  "Returns a new, empty segment structure with the provided id."
+  "Returns a new, empty segment map with the provided id."
   [id & fields]
-  (struct-map segment-struct :id id
-              :fields (if (< 0 (count fields)) (vec fields) [])))
+  {:id id :fields (if (< 0 (count fields)) (vec fields) [])})
 
 (defn create-field
-  "Returns a new field structure populated with the provided data."
+  "Returns a new field map populated with the provided data."
   [data]
-  (struct-map field-struct :content (convert-values data)))
+  {:content (convert-values data)})
 
 (defn add-segment
-  "Adds the provided segment structure to the provided message
-  structure and returns a new message."
+  "Adds the provided segment map to the provided message map and returns a new
+  message."
   [message segment]
   (assoc message :segments (conj (:segments message) segment)))
 
 (defn add-field
-  "Adds the provided field structure to the provided segment structure
-  and returns a new segment."
+  "Adds the provided field map to the provided segment map and returns a new
+  segment."
   [segment field]
   (assoc segment :fields (conj (:fields segment) field)))
 
 (defn add-fields
-  "Adds the provided field structures to the provided segment
-  structure and returns a new segment."
+  "Adds the provided field maps to the provided segment map and returns a new
+  segment."
   [segment fields]
   (assoc segment :fields (into (:fields segment) fields)))
 
@@ -251,15 +226,14 @@
     true false))
 
 (defn- read-delimiters
-  "Parses through the delimiters and returns a map with those
-  delimiters (delimiter-struct)."
+  "Parses through the delimiters and returns a map with those delimiters."
   [reader]
 
   ;; loop through the reader, buffer the message id and build up the delimiters
   (loop [int-in (.read reader)
          buffer []
          segment-id nil
-         delimiters (struct-map delimiters-struct)
+         delimiters {}
          char-index 0]
 
     (cond
@@ -310,14 +284,14 @@
 (defn- read-segment-delimiters
   "Parsers through the MSH or FHS segment up until the end of the first field (the
   list of delimiters) and returns a map with the segment id (:segment-id) and
-  the the delimiter values (:delimiters with the delimiter-struct)."
+  the the delimiter values (a map)."
   [reader]
 
   ;; loop through the reader, buffer the message id and build up the delimiters
   (loop [int-in (.read reader)
          buffer []
          segment-id nil
-         delimiters (struct-map delimiters-struct)
+         delimiters {}
          char-index 0]
 
     (cond
@@ -546,9 +520,8 @@
 
 (defn- read-msh-fhs-segment
   "Adds the \"MSH\" or \"BHS\" segment and its first field of data to the provided
-  message-struct and returns the new message. This first field will be the list
-  of delimiters, the provided message must already have a valid set of
-  delimiters."
+  message map and returns the new message. This first field will be the list of
+  delimiters, the provided message must already have a valid set of delimiters."
   [segment-id reader message]
 
   ;; instantiate our new MSH segment and fill the first field with our
@@ -623,8 +596,7 @@
           (recur (.read reader) fields))))))
 
 (defn- parse-message
-  "Parsers the data read by the reader into a valid HL7 message data
-  structure (message-struct)."
+  "Parses the data read by the reader into a valid HL7 message data map."
   [reader]
 
   ;; loop through the reader and parse the delimiters, the MSH segment
@@ -659,8 +631,7 @@
       (recur (.read reader) parsing segment-id message))))
 
 (defn parse
-  "Reads data from the provided source (a Reader, String, etc.) and
-  parses that data into a hash-map (hl7-struct) that represents the
-  content of the message."
+  "Reads data from the provided source (a Reader, String, etc.) and parses that
+  data into a map that represents the content of the message."
   [message-source]
   (parse-message (get-reader message-source)))
