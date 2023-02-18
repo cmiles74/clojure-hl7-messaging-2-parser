@@ -8,7 +8,6 @@
   (:require
    [com.nervestaple.hl7-parser.parser :as parser]
    [com.nervestaple.hl7-parser.message :as message]
-   [com.nervestaple.hl7-parser.batch :as batch]
    [com.nervestaple.hl7-parser.test :as test]
    [com.nervestaple.hl7-parser.dump :as dump]))
 
@@ -32,8 +31,9 @@
                                         :production-mode "P"
                                         :version "2.3"
                                         :text-message "Message processed successfully"}
-                                       "AA" parsed-message))
-          (println (str "Parsed: " (pr-str parsed-message))))
+                                       "AA" parsed-message)))
+    (println)
+    (dump/dump parsed-message)
 
     ;; (with-open [reader (io/reader "file-of-batch-message.hl7.txt")]
     ;;   (let [messages (batch/read-messages reader)]
