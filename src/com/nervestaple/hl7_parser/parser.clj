@@ -3,8 +3,6 @@
 ;;
 (ns com.nervestaple.hl7-parser.parser
   (:use
-   [taoensso.timbre :as timbre
-         :only (trace debug info warn error fatal spy)]
     [clojure.string :as string :only (trim)])
   (:import
    (java.text SimpleDateFormat)
