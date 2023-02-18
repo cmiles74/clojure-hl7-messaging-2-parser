@@ -227,18 +227,21 @@
   [char-expect-int int-in]
 
   (if (= -1 int-in)
-    (throw (Exception. (str "End of file reached while looking for " (char char-expect-int))))
+    (throw (Exception.
+             (str "End of file reached while looking for " (char char-expect-int)
+                  "(" char-expect-int ")")))
     (if (= char-expect-int int-in)
       true
-      (throw (Exception. (str "Expected \"" (char char-expect-int) "\" but read "
-                              "\"" (char int-in) "\""))))))
+      (throw (Exception.
+               (str "Expected \"" (char char-expect-int) "\" (" char-expect-int
+                    ") but read \"" (char int-in) "\" (" int-in ")"))))))
 
 (defn- delimiter?
   "Returns true if the provided Integer corresponds to the character
   value of one of this messages delimiters."
   [message int-in]
 
-  (if (= -1 int-in)
+  (when (= -1 int-in)
     true)
 
   (if (or (= (:component (:delimiters message)) int-in)
@@ -253,8 +256,13 @@
   "Parses through the delimiters and returns a map with those
   delimiters (delimiter-struct)."
   [reader]
+
   ;; loop through the reader, buffer the message id and build up the delimiters
-  (loop [int-in (.read reader) buffer [] segment-id nil delimiters (struct-map delimiters-struct) char-index 0]
+  (loop [int-in (.read reader)
+         buffer []
+         segment-id nil
+         delimiters (struct-map delimiters-struct)
+         char-index 0]
 
     (cond
 
@@ -287,14 +295,19 @@
       ;; throw an exception if this isn't a field delimiter
       (= 5 char-index)
       (do
-        (if (not (expect-char-int (:field delimiters) int-in))
-          (throw (Exception. "Expected beginning of next segment but read more delimiter data")))
+        (when (not (expect-char-int (:field delimiters) int-in))
+          (throw (Exception.
+                   "Expected beginning of next segment but read more delimiter data")))
         (.unread reader int-in)
         delimiters)
 
       ;; handle text, this is likely the segment's id
       :else
-      (recur (.read reader) (conj buffer (char int-in)) segment-id delimiters (inc char-index)))))
+      (recur (.read reader)
+             (conj buffer (char int-in))
+             segment-id
+             delimiters
+             (inc char-index)))))
 
 (defn- read-segment-delimiters
   "Parsers through the MSH or FHS segment up until the end of the first field (the
@@ -303,7 +316,11 @@
   [reader]
 
   ;; loop through the reader, buffer the message id and build up the delimiters
-  (loop [int-in (.read reader) buffer [] segment-id nil delimiters (struct-map delimiters-struct) char-index 0]
+  (loop [int-in (.read reader)
+         buffer []
+         segment-id nil
+         delimiters (struct-map delimiters-struct)
+         char-index 0]
 
     (cond
 
@@ -317,7 +334,7 @@
       ;; and then start reading the delimiters
       (= 3 char-index)
       (let [segment-id (apply str buffer)]
-        (if (not (or (= "MSH" segment-id)
+        (when (not (or (= "MSH" segment-id)
                      (= "FHS" segment-id)))
           (throw (Exception. (str "Expected first segment to have the id of "
                                   "\"MSH\" or \"FHS\"  but found \""
@@ -328,7 +345,10 @@
 
       ;; handle text, this is likely the segment's id
       :else
-      (recur (.read reader) (conj buffer (char int-in)) segment-id delimiters (inc char-index)))))
+      (recur (.read reader)
+             (conj buffer (char int-in))
+             segment-id delimiters
+             (inc char-index)))))
 
 (defn- read-escaped-text
   "Reads in escaped text to the next escape delimiter character."
@@ -438,9 +458,10 @@
   ;; throw an exception if we aren't starting with a field or
   ;; repeating delimiter
   (let [int-in (.read reader)]
-    (if (not (or (= (:field (:delimiters message)) int-in)
-                 (= (:repeating (:delimiters message)) int-in)))
-      (throw (Exception. "Expected a field or repeating delimiter when reading field data"))))
+    (when-not (or (= (:field (:delimiters message)) int-in)
+                  (= (:repeating (:delimiters message)) int-in))
+      (throw (Exception.
+               "Expected a field or repeating delimiter when reading field data"))))
 
   ;; loop through the reader, build up a vector of fields by building
   ;; up each individual field
@@ -543,22 +564,17 @@
       (cond
 
         (= -1 int-in)
-        (do
-          (println (pr-str message))
-          (println (pr-str segment))
-          (println (pr-str fields))
-          (throw (Exception. "End of file reached while reading segment data")))
+        (throw (Exception. "End of file reached while reading segment data"))
 
         ;; handle the end of field by reading the next field
         (= (:field (:delimiters message)) int-in)
         (do (.unread reader int-in)
             (recur nil (conj fields (read-field reader message true))))
 
-        ;; handle the end of segement by adding the fields to the
+        ;; handle the end of segment by adding the fields to the
         ;; segment and then returning our segment of data
         (= SEGMENT-DELIMITER int-in)
-        (do (.unread reader int-in)
-            (add-segment message (add-fields segment fields)))
+        (add-segment message (add-fields segment fields))
 
         ;; keep reading in more field data
         :else
@@ -571,14 +587,11 @@
   the first field of the MSH segment."
   [reader message]
 
-  ;; make sure the next character is a segment delimiter
-  (expect-char-int SEGMENT-DELIMITER (.read reader))
-
   ;; read in our segment id
   (let [segment-id (string/trim (read-text message reader))]
 
     ;; throw an exception if we don't get a valid segment id
-    (if (or (nil? segment-id) (not= 3 (count segment-id)))
+    (when (or (nil? segment-id) (not= 3 (count segment-id)))
       (throw (Exception. (str "Illegal segment id \"" segment-id "\" read"))))
 
     ;; create our new segment
@@ -599,8 +612,7 @@
           ;; handle segment delimiters by adding our fields to our
           ;; segment and then adding our segment to the message
           (= SEGMENT-DELIMITER int-in)
-          (do (.unread reader int-in)
-              (add-segment message (add-fields segment fields)))
+          (add-segment message (add-fields segment fields))
 
           ;; handle the field delimiter by reading the next field and
           ;; adding it to our vector of fields
