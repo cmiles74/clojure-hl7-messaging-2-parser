@@ -41,10 +41,11 @@
   index 1. Another gotcha in the MSH segment, the first field of data
   starts at index 2 and that's the list of delimiters.
 
-  This function will return the id of the segment if you ask for index
-  0. For the MSH segment, it will return nil for index 1 instead of
-  returning the field delimiter. If you want the field delimiter you
-  can get it under the :delimiter key of the message."
+  This function will return the id of the segment if you ask for index 0. For
+  the MSH segment, it will return nil for index 1 instead of returning the field
+  delimiter. If you want the field delimiter you can get it under the :delimiter
+  key of the message. If the provided index is out of bounds then nil will be
+  returned."
   ([segment index]
    (get-segment-field segment index false))
   ([segment index raw?]
@@ -66,7 +67,8 @@
        ;; correct our index and return the field
        :else
        (let [real-index (- index 2)]
-         (nth (:fields segment) real-index)))
+         (when (> (count (:fields segment)) real-index)
+           (nth (:fields segment) real-index))))
 
      :else
      (cond
@@ -78,7 +80,7 @@
        ;; correct our index and return the field
        :else
        (let [real-index (dec index)
-             field (if (< real-index (count (:fields segment)))
+             field (when (< real-index (count (:fields segment)))
                      (nth (:fields segment) real-index))]
          (if raw? field
              (if (map? field)
@@ -169,7 +171,7 @@
 (defn extract-text-from-segments
   "Extracts the text from the parsed message for the supplied index of
   the given segments, the text will be concatenated and returned as
-  one String. For instance, this function would extract all of th text
+  one String. For instance, this function would extract all of the text
   from the fifth index of all of the OBX segments:
 
       (extract-text-from-segments parsed-message 'OBX' 5)
@@ -216,6 +218,9 @@
       :sending-app, :sending-facility, :production-mode, :version,
       :text-message
 
+  Optionally, a `:message-id` key may be provided if you need a specific
+  value.
+
   These values will be used to fill out the ACK message. The
   'ack-status' field should be a valid HL7 version 2.x acknowledgment
   status:
@@ -225,9 +230,9 @@
 
   ;; make sure the sender of this message is looking to receive an
   ;; acknowledgement
-  (let [accept-ack-type (:content (get-field parsed-message "MSH" 15))]
-    (if (or (not= "NE" accept-ack-type)
-            (not= "ER" accept-ack-type))
+  (let [accept-ack-type (get-field-first-value parsed-message "MSH" 15)]
+    (when-not (or (= "NE" accept-ack-type)
+                  (= "ER" accept-ack-type))
 
       ;; we are returning an acknowledgement
       (create-message (:delimiters parsed-message)
@@ -237,7 +242,8 @@
                                       (create-field [(:sending-facility options)])
                                       (get-field-first parsed-message "MSH" 3)
                                       (get-field-first parsed-message "MSH" 4)
-                                      (create-field [(.format TIMESTAMP-FORMAT (new Date))])
+                                      (create-field [(or (:message-id options)
+                                                         (.format TIMESTAMP-FORMAT (new Date)))])
                                       (create-field [])
                                       (create-field ["ACK"])
                                       (get-field-first parsed-message "MSH" 10)
@@ -249,15 +255,18 @@
                                       (create-field [(:text-message options)]))))))
 
 (defn ack-message-fallback
-  "Returns a parsed message that contains an acknowledgement message
-  for the provided parsed message, the acknowledgement message will
-  use the same delimiters. If the message indicates that no
-  acknowledgement should be returned, this function will return nil.
+  "Returns a parsed message that contains an acknowledgement message for the
+  provided un-parsed message, the acknowledgement message will use default
+  delimiters. Use this function when you have an HL7v2 message that you need to
+  acknowledge but you cannot parse.
 
   The 'option' should be a hash-map with the following keys:
 
       :sending-app, :sending-facility, :production-mode, :version,
       :text-message
+
+  Optionally, a `:message-id` key may be provided if you need a specific
+  value.
 
   These values will be used to fill out the ACK message. The
   'ack-status' field should be a valid HL7 version 2.x acknowledgment
@@ -276,7 +285,8 @@
                                   (create-field [(:sending-facility options)])
                                   (create-field ["UNKNOWN"])
                                   (create-field ["UNKNOWN"])
-                                  (create-field [(.format TIMESTAMP-FORMAT (new Date))])
+                                  (create-field [(or (:message-id options)
+                                                     (.format TIMESTAMP-FORMAT (new Date)))])
                                   (create-field [])
                                   (create-field ["ACK"])
                                   (message-id-unparsed message)
