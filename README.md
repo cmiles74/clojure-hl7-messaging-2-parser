@@ -3,8 +3,8 @@ Clojure HL7 Version 2.x Message Parser
 
 [![Clojars Project](https://img.shields.io/clojars/v/org.clojars.cmiles74/clojure-hl7-parser.svg)](https://clojars.org/org.clojars.cmiles74/clojure-hl7-parser)
 
-This library provides functions for parsing and manipulating 
-[HL7 version 2.x Messages](https://secure.wikimedia.org/wikipedia/en/wiki/Health_Level_7#HL7_version_2.x).
+This library provides functions for parsing and manipulating [HL7 version 2.x
+Messages][hl7c2].
 
 Usage
 -----
@@ -115,10 +115,29 @@ pass in the delimiters for the message.
 
     user> (parser/pr-segment my-delimiters pid-segment)
     "PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||..."
+    
+Development
+------------
+
+This project is managed with [Leiningen][lein], more information is available on
+the project website. If you're working on a pull request, the important thing is
+that you have it installed and on your path. With that out of the way, you can
+run the tests with [Kaocha][kaocha]
+
+```shell
+$ lein kaocha
+```
+
+As long as the tests pass, you are on the right track. 😉
 
 Future Plans
 ------------
 
 I am actively using this library in several projects and will continue
 to work on this code. If you have any suggestions or patches, please
-fork this project and send me a pull request. :)
+fork this project and send me a pull request. 🙂
+
+
+[hl7v2]: https://secure.wikimedia.org/wikipedia/en/wiki/Health_Level_7#HL7_version_2.x "HL7 v2 Messaging"
+[lein]: https://leiningen.org/ "Leiningen"
+[kaocha]: https://github.com/lambdaisland/kaocha "Kaocha Test Runner"
