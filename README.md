@@ -116,6 +116,46 @@ pass in the delimiters for the message.
     user> (parser/pr-segment my-delimiters pid-segment)
     "PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||..."
     
+### Dump a Message
+
+Lastly we provide tools for displaying more detailed information about the
+structure and content of a parsed message. Provide a parsed message to the
+`dump` function to get detail on the segments and their data.
+
+```
+Delimiters: 
+  Field:          |
+  Component:      ^
+  Repeating:      ~
+  Escape:         \
+  Subcomponent:   &
+
+Segment ID: MSH
+Index HL7 Index   Type        Content
+----- ---------   ----------- -----------
+   -        1     Atom         "|"
+   0        2     Atom         "^~\&"
+   1        3     Atom         "AcmeHIS"
+   2        4     Atom         "StJohn"
+   3        5     Atom         "CATH"
+   4        6     Atom         "StJohn"
+   5        7     Atom         "20061019172719"
+   7        9     Component    1: "ORM", 2: "O01"
+   8       10     Atom         "1676926150678"
+   9       11     Atom         "P"
+  10       12     Atom         "2.3"
+
+Segment ID: PID
+Index HL7 Index   Type        Content
+----- ---------   ----------- -----------
+   2        3     Atom         "20301"
+   4        5     Component    1: "Durden", 2: "Tyler", 3: "", 4: "", 5: "Mr."
+   6        7     Atom         "19700312"
+   7        8     Atom         "M"
+  10       11     Component    1: "88 Punchward Dr.", 2: "", 3: "Los Angeles", 4: "CA", 5: "11221", 6: "USA"
+...
+```
+    
 Development
 ------------
 
