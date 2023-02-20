@@ -116,3 +116,128 @@
 (deftest emit-message-test
   (testing "Emits the test message"
     (is (= (sample/message) (parser/str-message short-message-parsed)))))
+
+(deftest empty-message-delimiters-test
+  (testing "Empty messages contain default delimiters"
+    (is (= (:delimiters short-message-parsed)
+           (:delimiters (parser/create-empty-message))))))
+
+(deftest pr-delimiters-test
+  (testing "Returns a string with the provided delimiters"
+    (is (= "^~\\&"
+           (parser/pr-delimiters parser/DEFAULT-DELIMITERS)))))
+
+(deftest create-empty-message
+  (testing "Creates an empty message"
+    (is (= {:delimiters
+            {:field 124, :component 94, :subcomponent 38, :repeating 126, :escape 92},
+            :segments []}
+           (parser/create-empty-message)))))
+
+(deftest create-empty-message-with-delimiters
+  (testing "Creates an empty message"
+    (is (= {:delimiters
+            {:field 1 :component 2 :subcomponent 3 :repeating 4 :escape 5}
+            :segments []}
+           (parser/create-empty-message
+            {:field 1 :component 2 :subcomponent 3 :repeating 4 :escape 5})))))
+
+(deftest create-segment-test
+  (testing "Creates an empty segment"
+    (is (= {:id "PID" :fields []}
+           (parser/create-segment "PID")))))
+
+(deftest create-segment-with-fields
+  (testing "Creates a segment with field data"
+    (is (= {:id "PID",
+            :fields
+            [{:content []}
+             {:content []}
+             {:content ["20301"]}
+             {:content []}
+             {:content ["Durden" "Tyler" "" "" "Mr."]}
+             {:content []}
+             {:content ["19700312"]}
+             {:content ["M"]}
+             {:content []}
+             {:content []}
+             {:content ["88 Punchward Dr." "" "Los Angeles" "CA" "11221" "USA"]}]}
+           (parser/create-segment "PID"
+                                  (parser/create-field)
+                                  (parser/create-field)
+                                  (parser/create-field "20301")
+                                  (parser/create-field)
+                                  (parser/create-field ["Durden" "Tyler" nil nil "Mr."])
+                                  (parser/create-field)
+                                  (parser/create-field "19700312")
+                                  (parser/create-field "M")
+                                  (parser/create-field)
+                                  (parser/create-field)
+                                  (parser/create-field ["88 Punchward Dr." nil "Los Angeles" "CA" "11221" "USA"]))))))
+
+(deftest add-segment-to-message
+  (testing "Creates a message and adds as segment"
+    (is (= {:delimiters
+            {:field 124, :component 94, :subcomponent 38, :repeating 126, :escape 92},
+            :segments
+            [{:id "PID",
+              :fields
+              [{:content []}
+               {:content []}
+               {:content ["20301"]}
+               {:content []}
+               {:content ["Durden" "Tyler" "" "" "Mr."]}
+               {:content []}
+               {:content ["19700312"]}
+               {:content ["M"]}
+               {:content []}
+               {:content []}
+               {:content ["88 Punchward Dr." "" "Los Angeles" "CA" "11221" "USA"]}]}]}
+           (parser/add-segment
+            (parser/create-empty-message)
+            (parser/create-segment "PID"
+                                   (parser/create-field)
+                                   (parser/create-field)
+                                   (parser/create-field "20301")
+                                   (parser/create-field)
+                                   (parser/create-field ["Durden" "Tyler" nil nil "Mr."])
+                                   (parser/create-field)
+                                   (parser/create-field "19700312")
+                                   (parser/create-field "M")
+                                   (parser/create-field)
+                                   (parser/create-field)
+                                   (parser/create-field ["88 Punchward Dr." nil "Los Angeles" "CA" "11221" "USA"])))))))
+
+(deftest add-field-to-segment
+  (testing "Adds a field to a segment"
+    (is (= {:id "PID",
+            :fields
+            [{:content []}
+             {:content []}
+             {:content ["20301"]}
+             {:content []}
+             {:content ["Durden" "Tyler" "" "" "Mr."]}]}
+           (parser/add-field
+            (parser/create-segment "PID"
+                                   (parser/create-field)
+                                   (parser/create-field)
+                                   (parser/create-field "20301")
+                                   (parser/create-field))
+            (parser/create-field ["Durden" "Tyler" nil nil "Mr."]))))))
+
+(deftest add-fields-to-segment
+  (testing "Adds a field to a segment"
+    (is (= {:id "PID",
+            :fields
+            [{:content []}
+             {:content []}
+             {:content ["20301"]}
+             {:content []}
+             {:content ["Durden" "Tyler" "" "" "Mr."]}]}
+           (parser/add-fields
+            (parser/create-segment "PID"
+                                   (parser/create-field)
+                                   (parser/create-field)
+                                   (parser/create-field "20301"))
+            [(parser/create-field)
+             (parser/create-field ["Durden" "Tyler" nil nil "Mr."])])))))

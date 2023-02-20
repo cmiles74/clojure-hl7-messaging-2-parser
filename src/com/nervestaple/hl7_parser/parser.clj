@@ -18,8 +18,23 @@
 (def ASCII_CR 13)
 (def ASCII_LF 10)
 
+;; ASCII codes of characters used as default delimiters
+(def ASCII_PIPE 124)
+(def ASCII_CARAT 94)
+(def ASCII_AMPERSAND 38)
+(def ASCII_TILDE 126)
+(def ASCII_BACKSLASH 92)
+
 ;; HL7 Messaging v2.x segment delimiter
 (def SEGMENT-DELIMITER ASCII_CR)
+
+;; Default set of message delimiters, these are the most common
+(def DEFAULT-DELIMITERS
+  {:field ASCII_PIPE
+   :component ASCII_CARAT
+   :subcomponent ASCII_AMPERSAND
+   :repeating ASCII_TILDE
+   :escape ASCII_BACKSLASH})
 
 ;;
 ;; Emit methods used to output messages
@@ -127,12 +142,17 @@
     [values]))
 
 (defn create-empty-message
-  "Returns a new, empty message map."
-  []
-  {:delimiters nil :segments []})
+  "Returns a new, empty message map. if no map of delimiters is provided then the
+  default set will be used."
+  ([]
+   (create-empty-message DEFAULT-DELIMITERS))
+  ([delimiters]
+  {:delimiters delimiters :segments []}))
 
 (defn create-message
-  "Returns a new, empty message map."
+  "Accepts a map of delimiters and segments. Returns a new parsed message using
+  the provided delimiters (or the default set if none is provided) populated
+  with the provided segments."
   [delimiters & segments]
   {:delimiters delimiters
    :segments (if (< 0 (count segments)) (vec segments) [])})
@@ -144,8 +164,10 @@
 
 (defn create-field
   "Returns a new field map populated with the provided data."
-  [data]
-  {:content (convert-values data)})
+  ([]
+   (create-field nil))
+  ([data]
+   {:content (convert-values data)}))
 
 (defn add-segment
   "Adds the provided segment map to the provided message map and returns a new
