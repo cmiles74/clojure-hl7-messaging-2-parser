@@ -104,3 +104,15 @@
              {:id "MSA", :fields [{:content ["AR"]} nil {:content [""]}]}]}
            (sut/ack-message-fallback {:message-id "20230218125600"}
                                      "AR" "BLERG!")))))
+(deftest message-with-long-segment-id
+  (testing "Parses a message that includes a long segment identifier"
+    (is  (= {:id "ZQRY"
+             :fields [{:content ["Y"]} {:content ["Y"]} {:content []}
+                      {:content []} {:content []} {:content []} {:content []}
+                      {:content []} {:content []} {:content []} {:content []}
+                      {:content []} {:content []} {:content []}
+                      {:content ["20230915"]} {:content ["000072816"]}
+                      {:content ["1907838"]} {:content []} {:content []}
+                      {:content []} {:content []} {:content []} {:content []}
+                      {:content []} {:content []} {:content []}]}
+            (first (sut/get-segments (parser/parse (sample/message-long-segment-id)) "ZQRY"))))))

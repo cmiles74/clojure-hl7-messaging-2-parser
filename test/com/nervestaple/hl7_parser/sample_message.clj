@@ -31,3 +31,14 @@
        "PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||20061019172717|20061019172718" (char parser/ASCII_CR)
        "ORC|NW|20061019172719" (char parser/ASCII_CR)
        "OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876" (char parser/ASCII_CR)))
+
+(defn message-long-segment-id
+  "Returns a short message that includes a proprietary segment with a long identifier"
+  []
+  (str "MSH|^~\\&|AcmeHIS|StJohn|CATH|StJohn|20061019172719||ORM^O01|"
+       (. (new Date) getTime) "|P|2.3" (char parser/ASCII_CR)
+       "PID|||20301||Durden^Tyler^^^Mr.||19700312|M|||88 Punchward Dr.^^Los Angeles^CA^11221^USA|||||||" (char parser/ASCII_CR)
+       "PV1||O|OP^^||||4652^Paulson^Robert|||OP|||||||||9|||||||||||||||||||||||||20061019172717|20061019172718" (char parser/ASCII_CR)
+       "ORC|NW|20061019172719" (char parser/ASCII_CR)
+       "OBR|1|20061019172719||76770^Ultrasound: retroperitoneal^C4|||12349876" (char parser/ASCII_CR)
+       "ZQRY|Y|Y|||||||||||||20230915|000072816|1907838|||||||||" (char parser/ASCII_CR)))
