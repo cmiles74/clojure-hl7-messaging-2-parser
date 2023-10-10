@@ -584,7 +584,7 @@
   (let [segment-id (string/trim (read-text message reader))]
 
     ;; throw an exception if we don't get a valid segment id
-    (when (or (nil? segment-id) (not= 3 (count segment-id)))
+    (when (or (nil? segment-id) (> 3 (count segment-id)))
       (throw (Exception. (str "Illegal segment id \"" segment-id "\" read"))))
 
     ;; create our new segment
