@@ -4,7 +4,7 @@ Clojure HL7 Version 2.x Message Parser
 [![Clojars Project](https://img.shields.io/clojars/v/org.clojars.cmiles74/clojure-hl7-parser.svg)](https://clojars.org/org.clojars.cmiles74/clojure-hl7-parser)
 
 This library provides functions for parsing and manipulating [HL7 version 2.x
-Messages][hl7c2].
+Messages][hl7v2].
 
 Usage
 -----
