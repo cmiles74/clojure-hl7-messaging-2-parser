@@ -18,3 +18,4 @@ pom.xml.*
 .lein-*
 .clj-kondo
 .lsp
+.shadow-cljs

@@ -1,7 +1,7 @@
 (ns com.nervestaple.hl7-parser.parser-test
   (:require
    [clojure.string :as string]
-   [clojure.test :refer :all]
+   [clojure.test :refer [deftest is testing]]
    [com.nervestaple.hl7-parser.parser :as sut]
    [com.nervestaple.hl7-parser.sample-message :as sample]
    [com.nervestaple.hl7-parser.parser :as parser]))
@@ -111,7 +111,7 @@
 
 (deftest parse-message-test-extra-trailing-segment-delimiter
   (testing "Parses a test message"
-    (is (thrown? Exception (sut/parse (str (sample/message) parser/ASCII_CR))))))
+    (is (thrown? #?(:clj Exception :cljs js/Error) (sut/parse (str (sample/message) parser/ASCII_CR))))))
 
 (deftest emit-message-test
   (testing "Emits the test message"
