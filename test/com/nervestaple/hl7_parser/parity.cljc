@@ -171,6 +171,9 @@
     (section "ack-message-fallback" (normalize-ack (message/ack-message-fallback ack-options "AR" text)))
     (section "ack-message-fallback, message id"
              (message/ack-message-fallback (assoc ack-options :message-id "ACK1") "AR" text))
+    (section "str-message ack-message-fallback, message id"
+             (attempt #(parser/str-message
+                        (message/ack-message-fallback (assoc ack-options :message-id "ACK1") "AR" text))))
     (when-not (:error parsed)
       (let [ids (message/segment-ids parsed)]
         (section "str-message" (attempt #(parser/str-message parsed)))
@@ -237,6 +240,9 @@
              (parser/add-fields
               (parser/add-field (parser/create-segment "PID") (parser/create-field ["Durden" nil "Tyler"]))
               [(parser/create-field) (parser/create-field [["a" "b"] "c"]) (parser/create-field nil)]))))
+  (section "pr-field with dates"
+           (let [date #?(:clj (java.util.Date. 124 0 5 7 8 9) :cljs (js/Date. 2024 0 5 7 8 9))]
+             (attempt #(parser/pr-field parser/DEFAULT-DELIMITERS (parser/create-field [date [date "x"]])))))
   (section "parse nil" (attempt #(parser/parse nil)))
   (section "parse vector of strings" (attempt #(parser/parse ["MSH|^~\\&|A" "\r" "PID|1||X" "\r"]))))
 
