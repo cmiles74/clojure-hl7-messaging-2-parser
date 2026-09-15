@@ -299,3 +299,9 @@
   (testing "Parses a message that ends with a segment id and no trailing segment delimiter"
     (is (= [{:id "ZZZ" :fields []} {:id "ZZY" :fields []}]
            (rest (:segments (parser/parse "MSH|^~\\&|A\rZZZ\rZZY")))))))
+
+(deftest parse-message-end-of-segment-in-delimiters-test
+  (testing "Throws when the segment ends while reading the delimiters"
+    (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+                          #"End of segment reached while reading delimiters"
+                          (parser/parse "MSH|^~\r")))))
