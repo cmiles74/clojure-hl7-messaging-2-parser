@@ -13,14 +13,17 @@
 ;; HL7 timestamp format
 #?(:clj (def TIMESTAMP-FORMAT (new SimpleDateFormat "yyyyMMddHHmmss")))
 
-#?(:cljs
-   (defn format-timestamp
-     "Returns an HL7 compatible timestamp (yyyyMMddHHmmss) for the provided
-     JavaScript Date, in local time."
-     [date]
-     (let [pad #(.padStart (str %1) %2 "0")]
-       (str (.getFullYear date) (pad (inc (.getMonth date)) 2) (pad (.getDate date) 2)
-            (pad (.getHours date) 2) (pad (.getMinutes date) 2) (pad (.getSeconds date) 2)))))
+(defn format-timestamp
+  "Returns an HL7 compatible timestamp (yyyyMMddHHmmss) in local time for the
+  provided date (a java.util.Date or a JavaScript Date), or for the current time
+  if no date is provided."
+  ([]
+   (format-timestamp #?(:clj (Date.) :cljs (js/Date.))))
+  ([date]
+   #?(:clj (.format ^SimpleDateFormat TIMESTAMP-FORMAT ^Date date)
+      :cljs (let [pad #(.padStart (str %1) %2 "0")]
+              (str (.getFullYear date) (pad (inc (.getMonth date)) 2) (pad (.getDate date) 2)
+                   (pad (.getHours date) 2) (pad (.getMinutes date) 2) (pad (.getSeconds date) 2))))))
 
 (defn- error
   "Returns a new platform exception with the provided message."
