@@ -61,8 +61,8 @@
 ;;
 
 (defn pr-delimiters
-  "Prints an HL7 compatible text representation of the provided
-  delimiters to the current *out* stream."
+  "Returns an HL7 compatible text representation of the provided
+  delimiters."
   [delimiters]
   (str (char (:component delimiters))
        (char (:repeating delimiters))
@@ -163,8 +163,7 @@
 
 (defn create-message
   "Accepts a map of delimiters and segments. Returns a new parsed message using
-  the provided delimiters (or the default set if none is provided) populated
-  with the provided segments."
+  the provided delimiters populated with the provided segments."
   [delimiters & segments]
   {:delimiters delimiters
    :segments (if (< 0 (count segments)) (vec segments) [])})
@@ -218,9 +217,9 @@
        (set! pushed (bit-and value 0xFFFF)))))
 
 (defmulti get-reader
-  "Returns a PushBackReader for the provided Object. We want to wrap
+  "Returns a pushback reader for the provided Object. We want to wrap
   another Reader but we'll cast to a String and read that if
-  required."
+  required. On ClojureScript the Object is always read as a String."
   #?(:clj class :cljs type))
 
 #?(:clj

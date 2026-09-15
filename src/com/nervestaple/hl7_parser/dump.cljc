@@ -44,9 +44,9 @@
                                                (:content field)))))))))
 
 (defn dump-segment
-  "Returns an human-readable String representing the content of the segment. If
-  the show-nulls parameter is provided and is true, null fields will also be
-  displayed."
+  "Prints a human-readable version of the content of the segment to the current
+  *out* stream. If the show-nulls parameter is provided and is true, null fields
+  will also be displayed."
   ([delimiters segment]
    (dump-segment delimiters segment false))
   ([delimiters segment show-nulls]
@@ -80,7 +80,8 @@
                (inc segment-index)))))))
 
 (defn dump-delimiters
-  "Returns a human-readable String representing the message's delimiters."
+  "Prints a human-readable version of the message's delimiters to the current
+  *out* stream."
   [delimiters]
 
   (println "Delimiters: ")
