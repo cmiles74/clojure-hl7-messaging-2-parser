@@ -98,12 +98,19 @@
                {:content ["20230218125600"]}
                {:content []}
                {:content ["ACK"]}
-               nil
+               {:content []}
                {:content [""]}
                {:content [""]}]}
-             {:id "MSA", :fields [{:content ["AR"]} nil {:content [""]}]}]}
+             {:id "MSA", :fields [{:content ["AR"]} {:content []} {:content [""]}]}]}
            (sut/ack-message-fallback {:message-id "20230218125600"}
                                      "AR" "BLERG!")))))
+
+(deftest ack-fallback-message-id-test
+  (testing "Includes the message id from the unparsed message in the acknowledgement"
+    (is (= "MSH|^~\\&|||UNKNOWN|UNKNOWN|20230218125600||ACK|1676735383748||\rMSA|AR|1676735383748|\r"
+           (parser/str-message
+            (sut/ack-message-fallback {:message-id "20230218125600"}
+                                      "AR" (sample/message)))))))
 (deftest message-with-long-segment-id
   (testing "Parses a message that includes a long segment identifier"
     (is  (= {:id "ZQRY"
