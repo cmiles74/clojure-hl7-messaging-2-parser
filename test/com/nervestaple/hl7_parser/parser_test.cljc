@@ -288,3 +288,14 @@
   (testing "Emits FHS and BHS segments"
     (let [text "FHS|^~\\&|APP|FAC\rBHS|^~\\&|APP|FAC\rMSH|^~\\&|A|B\rPID|1\r"]
       (is (= text (parser/str-message (parser/parse text)))))))
+
+(deftest parse-message-without-trailing-segment-delimiter-test
+  (testing "Parses a message with only an MSH segment and no trailing segment delimiter"
+    (is (= {:delimiters
+            {:field 124, :component 94, :repeating 126, :escape 92, :subcomponent 38}
+            :segments
+            [{:id "MSH" :fields [{:content ["^~\\&"]} {:content ["A"]} {:content ["B" "C"]}]}]}
+           (parser/parse "MSH|^~\\&|A|B^C"))))
+  (testing "Parses a message that ends with a segment id and no trailing segment delimiter"
+    (is (= [{:id "ZZZ" :fields []} {:id "ZZY" :fields []}]
+           (rest (:segments (parser/parse "MSH|^~\\&|A\rZZZ\rZZY")))))))

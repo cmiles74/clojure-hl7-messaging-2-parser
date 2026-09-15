@@ -407,8 +407,9 @@
 
     (cond
 
+      ;; the end of the data also ends the text
       (= int-in -1)
-      (throw (error "End of data reached while reading text"))
+      (apply str buffer)
 
       ;; we may encounter some escaped text
       ;; (= (:escape (:delimiters message)) int-in)
@@ -586,8 +587,10 @@
 
       (cond
 
+        ;; handle the end of the data by adding the fields to the segment,
+        ;; the last segment may not have a segment delimiter
         (= -1 int-in)
-        (throw (error "End of file reached while reading segment data"))
+        (add-segment message (add-fields segment fields))
 
         ;; handle the end of field by reading the next field
         (= (:field (:delimiters message)) int-in)
