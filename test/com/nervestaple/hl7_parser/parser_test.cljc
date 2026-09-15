@@ -274,3 +274,17 @@
                           (mapv (fn [_] (future (mapv parser/format-timestamp dates))))
                           (mapv deref))]
          (is (every? #(= expected %) results))))))
+
+(deftest pr-segment-test
+  (testing "Emits header segments with the delimiters as the first field"
+    (is (= "MSH|^~\\&|A|B^C"
+           (parser/pr-segment parser/DEFAULT-DELIMITERS
+                              (parser/create-segment "MSH" (parser/create-field "^~\\&")
+                                                     (parser/create-field "A")
+                                                     (parser/create-field ["B" "C"])))))
+    (is (= "MSH|^~\\&"
+           (parser/pr-segment parser/DEFAULT-DELIMITERS
+                              (parser/create-segment "MSH" (parser/create-field "^~\\&"))))))
+  (testing "Emits FHS and BHS segments"
+    (let [text "FHS|^~\\&|APP|FAC\rBHS|^~\\&|APP|FAC\rMSH|^~\\&|A|B\rPID|1\r"]
+      (is (= text (parser/str-message (parser/parse text)))))))

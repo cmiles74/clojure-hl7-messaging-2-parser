@@ -112,21 +112,13 @@
   "Returns an HL7 compatible String representation of the provided
   segment."
   [delimiters segment]
-  (if (or (not= "FHS" (:id segment))
-          (not= "BHS" (:id segment))
-          (not= "MSH" (:id segment)))
 
-      (str (:id segment) (char (:field delimiters))
+  ;; header segments (MSH, FHS and BHS) hold their delimiters as the text of
+  ;; the first field, so they're emitted like any other field
+  (str (:id segment) (char (:field delimiters))
        (apply str
               (interpose (char (:field delimiters))
-                         (map (partial pr-field delimiters) (:fields segment)))))
-
-      (str (:id segment) (char (:field delimiters))
-           (first (:content (first (:fields segment)))) (char (:field delimiters))
-       (apply str
-              (interpose (char (:field delimiters))
-                         (map (partial pr-field delimiters)
-                              (rest (:fields segment))))))))
+                         (map (partial pr-field delimiters) (:fields segment))))))
 
 (defn str-message
   "Returns the provided HL7 message as a string."
