@@ -2,15 +2,31 @@
 ;; Provides functions for parsing HL7 messages.
 ;;
 (ns com.nervestaple.hl7-parser.parser
-  (:use
-    [clojure.string :as string :only (trim)])
-  (:import
-   (java.text SimpleDateFormat)
-   (java.util Date)
-   (java.io PushbackReader StringReader)))
+  (:require
+   [clojure.string :as string])
+  #?(:clj
+     (:import
+      (java.text SimpleDateFormat)
+      (java.util Date)
+      (java.io PushbackReader StringReader))))
 
 ;; HL7 timestamp format
-(def TIMESTAMP-FORMAT (new SimpleDateFormat "yyyyMMddHHmmss"))
+#?(:clj (def TIMESTAMP-FORMAT (new SimpleDateFormat "yyyyMMddHHmmss")))
+
+#?(:cljs
+   (defn format-timestamp
+     "Returns an HL7 compatible timestamp (yyyyMMddHHmmss) for the provided
+     JavaScript Date, in local time."
+     [date]
+     (let [pad #(.padStart (str %1) %2 "0")]
+       (str (.getFullYear date) (pad (inc (.getMonth date)) 2) (pad (.getDate date) 2)
+            (pad (.getHours date) 2) (pad (.getMinutes date) 2) (pad (.getSeconds date) 2)))))
+
+(defn- error
+  "Returns a new platform exception with the provided message."
+  [message]
+  #?(:clj (Exception. ^String message)
+     :cljs (js/Error. message)))
 
 ;; ASCII codes of characters used to delimit and wrap messages
 (def ASCII_VT 11)
@@ -54,9 +70,12 @@
   content atom. Only Date objects are afforded special handling, an
   HL7 compatible timestamp is returned."
   [content]
-  (if (instance? java.util.Date content)
-    (.Format TIMESTAMP-FORMAT content)
-    content))
+  #?(:clj (if (instance? java.util.Date content)
+            (.Format TIMESTAMP-FORMAT content)
+            content)
+     :cljs (if (instance? js/Date content)
+             (format-timestamp content)
+             content)))
 
 (defn- pr-content
   "Returns an HL7 compatible String representation of the provided
@@ -191,20 +210,40 @@
 ;; Parser methods
 ;;
 
+#?(:cljs
+   (deftype StringPushbackReader [text ^:mutable position ^:mutable pushed]
+     Object
+     (read [_]
+       (cond
+         (some? pushed) (let [value pushed] (set! pushed nil) value)
+         (< position (.-length text)) (let [value (.charCodeAt text position)]
+                                        (set! position (inc position))
+                                        value)
+         :else -1))
+     (unread [_ value]
+       ;; like java.io.PushbackReader, the value is stored as a char
+       (set! pushed (bit-and value 0xFFFF)))))
+
 (defmulti get-reader
   "Returns a PushBackReader for the provided Object. We want to wrap
   another Reader but we'll cast to a String and read that if
   required."
-  class)
+  #?(:clj class :cljs type))
 
-(defmethod get-reader java.io.BufferedReader
-  [reader-in] (PushbackReader. reader-in))
+#?(:clj
+   (defmethod get-reader java.io.BufferedReader
+     [reader-in] (PushbackReader. reader-in)))
 
-(defmethod get-reader java.lang.Readable
-  [reader-in] (PushbackReader. reader-in))
+#?(:clj
+   (defmethod get-reader java.lang.Readable
+     [reader-in] (PushbackReader. reader-in)))
 
-(defmethod get-reader :default
-  [text-in] (PushbackReader. (StringReader. (apply str text-in))))
+#?(:clj
+   (defmethod get-reader :default
+     [text-in] (PushbackReader. (StringReader. (apply str text-in))))
+   :cljs
+   (defmethod get-reader :default
+     [text-in] (StringPushbackReader. (apply str text-in) 0 nil)))
 
 (defn- peek-int
   "Returns the next integer that will be read. You can only peek ahead
@@ -222,12 +261,12 @@
   [char-expect-int int-in]
 
   (if (= -1 int-in)
-    (throw (Exception.
+    (throw (error
              (str "End of file reached while looking for " (char char-expect-int)
                   "(" char-expect-int ")")))
     (if (= char-expect-int int-in)
       true
-      (throw (Exception.
+      (throw (error
                (str "Expected \"" (char char-expect-int) "\" (" char-expect-int
                     ") but read \"" (char int-in) "\" (" int-in ")"))))))
 
@@ -261,10 +300,10 @@
     (cond
 
       (= -1 int-in)
-      (throw (Exception. "End of file reached while reading delimiters for segment"))
+      (throw (error "End of file reached while reading delimiters for segment"))
 
       (= SEGMENT-DELIMITER int-in)
-      (throw (Exception. "End of segment reached while reading delmiters"))
+      (throw (error "End of segment reached while reading delmiters"))
 
       ;; read the field delimiter
       (= 0 char-index)
@@ -290,7 +329,7 @@
       (= 5 char-index)
       (do
         (when (not (expect-char-int (:field delimiters) int-in))
-          (throw (Exception.
+          (throw (error
                    "Expected beginning of next segment but read more delimiter data")))
         (.unread reader int-in)
         delimiters)
@@ -319,10 +358,10 @@
     (cond
 
       (= -1 int-in)
-      (throw (Exception. "End of file reached while reading MSH or FHS segment"))
+      (throw (error "End of file reached while reading MSH or FHS segment"))
 
       (= SEGMENT-DELIMITER int-in)
-      (throw (Exception. "End of segment reached while reading MSH or FHS segment"))
+      (throw (error "End of segment reached while reading MSH or FHS segment"))
 
       ;; after reading 3 characters, make sure this is an MSH segment
       ;; and then start reading the delimiters
@@ -330,7 +369,7 @@
       (let [segment-id (apply str buffer)]
         (when (not (or (= "MSH" segment-id)
                      (= "FHS" segment-id)))
-          (throw (Exception. (str "Expected first segment to have the id of "
+          (throw (error (str "Expected first segment to have the id of "
                                   "\"MSH\" or \"FHS\"  but found \""
                                   segment-id "\""))))
         (.unread reader int-in)
@@ -358,7 +397,7 @@
     (cond
 
       (= int-in -1)
-      (throw (Exception. "End of data reached while reading escaped text"))
+      (throw (error "End of data reached while reading escaped text"))
 
       ;; when we hit the escape delimiter, that's the end of the
       ;; escaped text
@@ -378,7 +417,7 @@
     (cond
 
       (= int-in -1)
-      (throw (Exception. "End of data reached while reading text"))
+      (throw (error "End of data reached while reading text"))
 
       ;; we may encounter some escaped text
       ;; (= (:escape (:delimiters message)) int-in)
@@ -454,7 +493,7 @@
   (let [int-in (.read reader)]
     (when-not (or (= (:field (:delimiters message)) int-in)
                   (= (:repeating (:delimiters message)) int-in))
-      (throw (Exception.
+      (throw (error
                "Expected a field or repeating delimiter when reading field data"))))
 
   ;; loop through the reader, build up a vector of fields by building
@@ -557,7 +596,7 @@
       (cond
 
         (= -1 int-in)
-        (throw (Exception. "End of file reached while reading segment data"))
+        (throw (error "End of file reached while reading segment data"))
 
         ;; handle the end of field by reading the next field
         (= (:field (:delimiters message)) int-in)
@@ -585,7 +624,7 @@
 
     ;; throw an exception if we don't get a valid segment id
     (when (or (nil? segment-id) (> 3 (count segment-id)))
-      (throw (Exception. (str "Illegal segment id \"" segment-id "\" read"))))
+      (throw (error (str "Illegal segment id \"" segment-id "\" read"))))
 
     ;; create our new segment
     (let [segment (if (= "BHS" segment-id)

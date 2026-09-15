@@ -2,13 +2,17 @@
 ;; Functions to make it easier to work with parsed HL7 messages.
 ;;
 (ns com.nervestaple.hl7-parser.message
-  (:use
-   [com.nervestaple.hl7-parser.parser]
+  (:require
+   [com.nervestaple.hl7-parser.parser :refer [create-message create-segment
+                                             create-field pr-delimiters pr-field
+                                             #?(:clj TIMESTAMP-FORMAT
+                                                :cljs format-timestamp)]]
+   ;; not used here, still loaded as they were with the previous :use
    [com.nervestaple.hl7-parser.util]
-   [com.nervestaple.hl7-parser.dump]
-   [com.nervestaple.hl7-parser.message])
-  (:import
-   (java.util Date)))
+   [com.nervestaple.hl7-parser.dump])
+  #?(:clj
+     (:import
+      (java.util Date))))
 
 (def REGEX-MESSAGE-ID
      #"MSH\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|")
@@ -143,7 +147,8 @@
 
     ;; throw an error if we have an illegal HL7 index
     (when (< field-index-fixed 0)
-      (throw (Exception. "The first field is at index 1")))
+      (throw #?(:clj (Exception. "The first field is at index 1")
+                :cljs (js/Error. "The first field is at index 1"))))
 
     ;; create a whole new message
     {:delimiters (:delimiters message)
@@ -242,7 +247,7 @@
                                       (get-field-first parsed-message "MSH" 3)
                                       (get-field-first parsed-message "MSH" 4)
                                       (create-field [(or (:message-id options)
-                                                         (.format TIMESTAMP-FORMAT (new Date)))])
+                                                         #?(:clj (.format TIMESTAMP-FORMAT (new Date)) :cljs (format-timestamp (js/Date.))))])
                                       (create-field [])
                                       (create-field ["ACK"])
                                       (get-field-first parsed-message "MSH" 10)
@@ -285,7 +290,7 @@
                                   (create-field ["UNKNOWN"])
                                   (create-field ["UNKNOWN"])
                                   (create-field [(or (:message-id options)
-                                                     (.format TIMESTAMP-FORMAT (new Date)))])
+                                                     #?(:clj (.format TIMESTAMP-FORMAT (new Date)) :cljs (format-timestamp (js/Date.))))])
                                   (create-field [])
                                   (create-field ["ACK"])
                                   (message-id-unparsed message)

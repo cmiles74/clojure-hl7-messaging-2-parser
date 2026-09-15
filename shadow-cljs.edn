@@ -1,0 +1,21 @@
+;; ClojureScript builds used to check the parser under ClojureScript, the library
+;; itself is built and released with Leiningen. shadow-cljs needs Java 21+.
+;;
+;;   npx shadow-cljs@3.5.1 compile test && node target/cljs-test/test.js
+;;   npx shadow-cljs@3.5.1 release parity && node target/parity/parity.js target/parity/cljs.txt
+;;
+;; Compare the parity output with the JVM output from
+;;
+;;   lein run -m com.nervestaple.hl7-parser.parity target/parity/jvm.txt
+{:source-paths ["src" "test"]
+
+ :dependencies []
+
+ :builds
+ {:test {:target :node-test
+         :output-to "target/cljs-test/test.js"
+         :ns-regexp "-test$"}
+
+  :parity {:target :node-script
+           :output-to "target/parity/parity.js"
+           :main com.nervestaple.hl7-parser.parity/main}}}

@@ -1,7 +1,7 @@
 (ns com.nervestaple.hl7-parser.message-test
   (:require
    [clojure.string :as string]
-   [clojure.test :refer :all]
+   [clojure.test :refer [deftest is testing]]
    [com.nervestaple.hl7-parser.message :as sut]
    [com.nervestaple.hl7-parser.parser :as parser]
    [com.nervestaple.hl7-parser.sample-message :as sample]))
