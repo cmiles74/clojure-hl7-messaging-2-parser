@@ -10,7 +10,8 @@
       (java.util Date)
       (java.io PushbackReader StringReader))))
 
-;; HL7 timestamp format
+;; HL7 timestamp format, SimpleDateFormat isn't thread-safe so use format-timestamp
+;; instead of sharing this instance
 #?(:clj (def TIMESTAMP-FORMAT (new SimpleDateFormat "yyyyMMddHHmmss")))
 
 (defn format-timestamp
@@ -20,7 +21,7 @@
   ([]
    (format-timestamp #?(:clj (Date.) :cljs (js/Date.))))
   ([date]
-   #?(:clj (.format ^SimpleDateFormat TIMESTAMP-FORMAT ^Date date)
+   #?(:clj (.format (SimpleDateFormat. "yyyyMMddHHmmss") ^Date date)
       :cljs (let [pad #(.padStart (str %1) %2 "0")]
               (str (.getFullYear date) (pad (inc (.getMonth date)) 2) (pad (.getDate date) 2)
                    (pad (.getHours date) 2) (pad (.getMinutes date) 2) (pad (.getSeconds date) 2))))))

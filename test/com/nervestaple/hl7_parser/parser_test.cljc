@@ -260,3 +260,17 @@
            (parser/pr-field parser/DEFAULT-DELIMITERS
                             (parser/create-field [(local-date 2024 1 5 7 8 9)
                                                   [(local-date 2024 12 31 23 59 58) "x"]]))))))
+
+#?(:clj
+   (deftest format-timestamp-concurrent-test
+     (testing "Formats dates correctly when called from several threads"
+       (let [dates (mapv #(java.util.Date. (+ 1000000000000 (* % 86400123))) (range 1000))
+             formatter (java.time.format.DateTimeFormatter/ofPattern "yyyyMMddHHmmss")
+             expected (mapv #(.format formatter (java.time.LocalDateTime/ofInstant
+                                                 (.toInstant ^java.util.Date %)
+                                                 (java.time.ZoneId/systemDefault)))
+                            dates)
+             results (->> (range 8)
+                          (mapv (fn [_] (future (mapv parser/format-timestamp dates))))
+                          (mapv deref))]
+         (is (every? #(= expected %) results))))))
