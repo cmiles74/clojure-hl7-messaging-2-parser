@@ -265,13 +265,11 @@
 
 (defn- delimiter?
   "Returns true if the provided Integer corresponds to the character
-  value of one of this messages delimiters."
+  value of one of this messages delimiters or is the end of the data (-1)."
   [message int-in]
 
-  (when (= -1 int-in)
-    true)
-
-  (if (or (= (:component (:delimiters message)) int-in)
+  (if (or (= -1 int-in)
+          (= (:component (:delimiters message)) int-in)
           (= (:repeating (:delimiters message)) int-in)
           (= (:subcomponent (:delimiters message)) int-in)
           (= (:field (:delimiters message)) int-in)
