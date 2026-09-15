@@ -73,12 +73,9 @@
   content atom. Only Date objects are afforded special handling, an
   HL7 compatible timestamp is returned."
   [content]
-  #?(:clj (if (instance? java.util.Date content)
-            (.Format TIMESTAMP-FORMAT content)
-            content)
-     :cljs (if (instance? js/Date content)
-             (format-timestamp content)
-             content)))
+  (if (instance? #?(:clj java.util.Date :cljs js/Date) content)
+    (format-timestamp content)
+    content))
 
 (defn- pr-content
   "Returns an HL7 compatible String representation of the provided
