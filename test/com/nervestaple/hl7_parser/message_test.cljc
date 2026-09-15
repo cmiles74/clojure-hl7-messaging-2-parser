@@ -6,7 +6,7 @@
    [com.nervestaple.hl7-parser.parser :as parser]
    [com.nervestaple.hl7-parser.sample-message :as sample]))
 
-(deftest get-segment-field-raw-test
+(deftest get-segment-field-test
   (testing "Gets the field of a segment"
     (is (= ["Durden" "Tyler" "" "" "Mr."]
            (sut/get-segment-field
