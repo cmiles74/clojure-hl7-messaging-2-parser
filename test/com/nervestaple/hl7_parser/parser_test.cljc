@@ -241,3 +241,15 @@
                                    (parser/create-field "20301"))
             [(parser/create-field)
              (parser/create-field ["Durden" "Tyler" nil nil "Mr."])])))))
+
+(defn- local-date
+  "Returns a date for the provided local time, the month is 1 to 12."
+  [year month day hour minute second]
+  #?(:clj (java.util.Date. (- year 1900) (dec month) day hour minute second)
+     :cljs (js/Date. year (dec month) day hour minute second)))
+
+(deftest format-timestamp-test
+  (testing "Formats a date as an HL7 timestamp in local time"
+    (is (= "20240105070809" (parser/format-timestamp (local-date 2024 1 5 7 8 9)))))
+  (testing "Formats the current time when no date is provided"
+    (is (re-matches #"\d{14}" (parser/format-timestamp)))))

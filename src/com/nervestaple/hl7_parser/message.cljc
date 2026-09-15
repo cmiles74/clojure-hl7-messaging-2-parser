@@ -5,14 +5,10 @@
   (:require
    [com.nervestaple.hl7-parser.parser :refer [create-message create-segment
                                              create-field pr-delimiters pr-field
-                                             #?(:clj TIMESTAMP-FORMAT
-                                                :cljs format-timestamp)]]
+                                             format-timestamp]]
    ;; not used here, still loaded as they were with the previous :use
    [com.nervestaple.hl7-parser.util]
-   [com.nervestaple.hl7-parser.dump])
-  #?(:clj
-     (:import
-      (java.util Date))))
+   [com.nervestaple.hl7-parser.dump]))
 
 (def REGEX-MESSAGE-ID
      #"MSH\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|")
@@ -247,7 +243,7 @@
                                       (get-field-first parsed-message "MSH" 3)
                                       (get-field-first parsed-message "MSH" 4)
                                       (create-field [(or (:message-id options)
-                                                         #?(:clj (.format TIMESTAMP-FORMAT (new Date)) :cljs (format-timestamp (js/Date.))))])
+                                                         (format-timestamp))])
                                       (create-field [])
                                       (create-field ["ACK"])
                                       (get-field-first parsed-message "MSH" 10)
@@ -290,7 +286,7 @@
                                   (create-field ["UNKNOWN"])
                                   (create-field ["UNKNOWN"])
                                   (create-field [(or (:message-id options)
-                                                     #?(:clj (.format TIMESTAMP-FORMAT (new Date)) :cljs (format-timestamp (js/Date.))))])
+                                                     (format-timestamp))])
                                   (create-field [])
                                   (create-field ["ACK"])
                                   (message-id-unparsed message)
