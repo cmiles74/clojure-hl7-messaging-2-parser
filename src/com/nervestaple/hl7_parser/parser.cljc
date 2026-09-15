@@ -293,7 +293,7 @@
       (throw (error "End of file reached while reading delimiters for segment"))
 
       (= SEGMENT-DELIMITER int-in)
-      (throw (error "End of segment reached while reading delmiters"))
+      (throw (error "End of segment reached while reading delimiters"))
 
       ;; read the field delimiter
       (= 0 char-index)
