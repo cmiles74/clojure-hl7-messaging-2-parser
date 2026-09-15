@@ -111,7 +111,7 @@
 
 (deftest parse-message-test-extra-trailing-segment-delimiter
   (testing "Parses a test message"
-    (is (thrown? #?(:clj Exception :cljs js/Error) (sut/parse (str (sample/message) parser/ASCII_CR))))))
+    (is (thrown? #?(:clj Exception :cljs js/Error) (sut/parse (str (sample/message) (char parser/ASCII_CR)))))))
 
 (deftest emit-message-test
   (testing "Emits the test message"
