@@ -289,10 +289,10 @@
                                                      (format-timestamp))])
                                   (create-field [])
                                   (create-field ["ACK"])
-                                  (message-id-unparsed message)
+                                  (create-field (message-id-unparsed message))
                                   (create-field [(:production-mode options)])
                                   (create-field [(:version options)]))
                   (create-segment "MSA"
                                   (create-field [ack-status])
-                                  (message-id-unparsed message)
+                                  (create-field (message-id-unparsed message))
                                   (create-field [(:text-message options)]))))
