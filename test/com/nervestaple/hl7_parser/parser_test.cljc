@@ -253,3 +253,10 @@
     (is (= "20240105070809" (parser/format-timestamp (local-date 2024 1 5 7 8 9)))))
   (testing "Formats the current time when no date is provided"
     (is (re-matches #"\d{14}" (parser/format-timestamp)))))
+
+(deftest pr-field-with-dates-test
+  (testing "Dates in a field are emitted as HL7 timestamps"
+    (is (= "20240105070809^20241231235958&x"
+           (parser/pr-field parser/DEFAULT-DELIMITERS
+                            (parser/create-field [(local-date 2024 1 5 7 8 9)
+                                                  [(local-date 2024 12 31 23 59 58) "x"]]))))))
