@@ -453,6 +453,10 @@
       ;;     (recur nil subcomponents (conj subcomponent
       ;;                                    (read-escaped-text message reader))))
 
+      ;; the end of the data ends the subcomponents, there's nothing to unread
+      (= -1 int-in)
+      (conj subcomponents (apply str subcomponent))
+
       ;; another delimiter type, add our last subcomponent and return
       ;; our vector of subcomponents
       (or (= SEGMENT-DELIMITER int-in)
