@@ -305,3 +305,23 @@
     (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
                           #"End of segment reached while reading delimiters"
                           (parser/parse "MSH|^~\r")))))
+
+(deftest parse-subcomponents-without-trailing-segment-delimiter-test
+  (let [header "MSH|^~\\&|A|B\r"
+        fields (fn [text] (-> (parser/parse text) :segments second :fields))]
+    (testing "Parses a last field that ends with subcomponents"
+      (is (= [{:content ["1"]} {:content []} {:content ["123" "" "" ["HOSP" "1.2.3" "ISO"]]}]
+             (fields (str header "PID|1||123^^^HOSP&1.2.3&ISO")))))
+    (testing "Parses a last component that ends with a subcomponent"
+      (is (= [{:content ["1"]} {:content []} {:content ["A" ["B" "C"]]}]
+             (fields (str header "PID|1||A^B&C")))))
+    (testing "Parses a last field that ends with a repeat"
+      (is (= [{:content ["1"]} {:content []} {:content [{:content ["A"]} {:content ["B"]}]}]
+             (fields (str header "PID|1||A~B")))))
+    (testing "Parses a last field that ends with a subcomponent delimiter"
+      (is (= [{:content ["1"]} {:content []} {:content [["X" ""]]}]
+             (fields (str header "PID|1||X&")))))
+    (testing "Parses the same message with and without a trailing segment delimiter"
+      (doseq [segment ["PID|1||123^^^HOSP&1.2.3&ISO" "PID|1||A^B&C" "PID|1||A~B" "PID|1||X&"]]
+        (is (= (fields (str header segment "\r"))
+               (fields (str header segment))))))))

@@ -111,7 +111,18 @@
    ["end of segment in delimiters" (segments "MSH|^~" "")]
    ["delimiters too long" (segments "MSH|^~\\&X|A" "")]
    ["short segment id" (segments "MSH|^~\\&|A|B|||||ADT^A01|ID12|P|2.3" "P|1" "")]
-   ["whitespace segment id" (segments "MSH|^~\\&|A|B|||||ADT^A01|ID13|P|2.3" "  PID |1" "")]])
+   ["whitespace segment id" (segments "MSH|^~\\&|A|B|||||ADT^A01|ID13|P|2.3" "  PID |1" "")]
+
+   ;; the last segment has no segment delimiter, so the data ends inside the
+   ;; subcomponents of the last field
+   ["subcomponents, no segment delimiter"
+    (segments "MSH|^~\\&|A|B|||||ADT^A01|ID14|P|2.3" "PID|1||123^^^HOSP&1.2.3&ISO")]
+   ["component ending in a subcomponent, no segment delimiter"
+    (segments "MSH|^~\\&|A|B|||||ADT^A01|ID15|P|2.3" "PID|1||A^B&C")]
+   ["repeat at the end, no segment delimiter"
+    (segments "MSH|^~\\&|A|B|||||ADT^A01|ID17|P|2.3" "PID|1||A~B")]
+   ["subcomponent delimiter at the end, no segment delimiter"
+    (segments "MSH|^~\\&|A|B|||||ADT^A01|ID16|P|2.3" "PID|1||X&")]])
 
 (defn- attempt
   "Calls f and returns its result, or a map with the error message if it throws."
