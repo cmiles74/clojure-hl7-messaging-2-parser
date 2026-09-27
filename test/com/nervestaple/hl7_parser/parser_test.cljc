@@ -325,3 +325,17 @@
       (doseq [segment ["PID|1||123^^^HOSP&1.2.3&ISO" "PID|1||A^B&C" "PID|1||A~B" "PID|1||X&"]]
         (is (= (fields (str header segment "\r"))
                (fields (str header segment))))))))
+
+(deftest segment-id-whitespace-test
+  (let [segment-id (fn [segment]
+                     (-> (parser/parse (str "MSH|^~\\&|A|B\r" segment))
+                         :segments second :id))]
+    (testing "Strips the whitespace that Character/isWhitespace strips"
+      (is (= "PID" (segment-id "  PID |1")))
+      (is (= "PID" (segment-id "\tPID\t|1")))
+      (is (= "PID" (segment-id "PID|1")))
+      (is (= "PID" (segment-id " PID |1"))))
+    (testing "Keeps the characters that Character/isWhitespace keeps"
+      (is (= "PID " (segment-id "PID |1")))
+      (is (= "PID" (segment-id "PID|1")))
+      (is (= "PID﻿" (segment-id "PID﻿|1"))))))

@@ -112,6 +112,14 @@
    ["delimiters too long" (segments "MSH|^~\\&X|A" "")]
    ["short segment id" (segments "MSH|^~\\&|A|B|||||ADT^A01|ID12|P|2.3" "P|1" "")]
    ["whitespace segment id" (segments "MSH|^~\\&|A|B|||||ADT^A01|ID13|P|2.3" "  PID |1" "")]
+   ;; the JVM and ClojureScript trim different characters, these ids are trimmed
+   ;; with the set that Character/isWhitespace uses
+   ["non-breaking space in segment id"
+    (segments "MSH|^~\\&|A|B|||||ADT^A01|ID18|P|2.3" "PID\u00a0|1" "")]
+   ["file separator in segment id"
+    (segments "MSH|^~\\&|A|B|||||ADT^A01|ID19|P|2.3" "PID\u001c|1" "")]
+   ["byte order mark in segment id"
+    (segments "MSH|^~\\&|A|B|||||ADT^A01|ID20|P|2.3" "PID\ufeff|1" "")]
 
    ;; the last segment has no segment delimiter, so the data ends inside the
    ;; subcomponents of the last field
