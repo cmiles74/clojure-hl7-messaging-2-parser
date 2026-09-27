@@ -1,0 +1,4 @@
+;; The library is built and released with Leiningen (see project.clj), this file
+;; is here so that tools.deps projects can use the repository directly, as a
+;; :local/root or :git/sha dependency.
+{:paths ["src"]}
