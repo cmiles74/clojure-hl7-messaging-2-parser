@@ -2,8 +2,6 @@
 ;; Provides functions for parsing HL7 messages.
 ;;
 (ns com.nervestaple.hl7-parser.parser
-  (:require
-   [clojure.string :as string])
   #?(:clj
      (:import
       (java.text SimpleDateFormat)
@@ -397,6 +395,31 @@
       :else
       (recur (.read reader) (conj buffer (char int-in))))))
 
+(def ^:private whitespace
+  "The characters that java.lang.Character/isWhitespace treats as whitespace: the
+  Unicode space, line and paragraph separators that aren't non-breaking, the tab,
+  newline, vertical tab, form feed and carriage return, and the file, group,
+  record and unit separators. ClojureScript's trim strips a different set (it
+  strips the non-breaking space and the byte order mark, and keeps the file,
+  group, record and unit separators), so segment ids are trimmed with this set
+  on both platforms.
+  "
+  (into #{\tab \newline \formfeed \return \space}
+        (map char)
+        [0x000b 0x001c 0x001d 0x001e 0x001f
+         0x1680 0x2000 0x2001 0x2002 0x2003 0x2004 0x2005 0x2006 0x2008 0x2009
+         0x200a 0x2028 0x2029 0x205f 0x3000]))
+
+(defn- trim-segment-id
+  "Removes the leading and trailing whitespace from a segment id."
+  [text]
+  (let [whitespace? #(contains? whitespace %)]
+    (->> (drop-while whitespace? text)
+         (reverse)
+         (drop-while whitespace?)
+         (reverse)
+         (apply str))))
+
 (defn- read-text
   "Reads in text up to the next delimiter character."
   [message reader]
@@ -617,7 +640,7 @@
   [reader message]
 
   ;; read in our segment id
-  (let [segment-id (string/trim (read-text message reader))]
+  (let [segment-id (trim-segment-id (read-text message reader))]
 
     ;; throw an exception if we don't get a valid segment id
     (when (or (nil? segment-id) (> 3 (count segment-id)))
