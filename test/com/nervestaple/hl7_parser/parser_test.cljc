@@ -326,6 +326,31 @@
         (is (= (fields (str header segment "\r"))
                (fields (str header segment))))))))
 
+(deftest parse-message-line-endings-test
+  (let [header "MSH|^~\\&|A|B|C|D|20240312083015||ADT^A01|ID1|P|2.5.1"
+        pid "PID|1||X"]
+    (testing "Parses segments separated by a carriage return"
+      (is (= ["MSH" "PID"] (mapv :id (:segments (parser/parse (str header "\r" pid "\r"))))))
+      (is (= ["MSH" "PID"] (mapv :id (:segments (parser/parse (str header "\r" pid)))))))
+    (testing "Throws for segments separated by a line feed"
+      (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+                            #"Line feed found in the MSH segment"
+                            (parser/parse (str header "\n" pid "\n")))))
+    (testing "Throws for segments separated by a carriage return and a line feed"
+      (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+                            #"Illegal segment id"
+                            (parser/parse (str header "\r\n" pid "\r\n")))))
+    (testing "Throws for a message that ends with a carriage return and a line feed"
+      (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+                            #"Illegal segment id"
+                            (parser/parse (str header "\r" pid "\r\n")))))
+    (testing "Keeps a line feed that is part of the data in a later segment"
+      (is (= ["MSH" "OBX"]
+             (mapv :id (:segments (parser/parse (str header "\rOBX|1|TX|||one\ntwo\r"))))))
+      (is (= {:content ["one\ntwo"]}
+             (-> (parser/parse (str header "\rOBX|1|TX|||one\ntwo\r"))
+                 :segments second :fields (nth 4)))))))
+
 (deftest segment-id-whitespace-test
   (let [segment-id (fn [segment]
                      (-> (parser/parse (str "MSH|^~\\&|A|B\r" segment))

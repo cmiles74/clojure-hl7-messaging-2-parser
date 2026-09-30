@@ -93,6 +93,7 @@
    ["extra trailing segment delimiter" (segments "MSH|^~\\&|A|B|||||ADT^A01|ID1|P|2.3" "PID|1||X" "" "")]
    ["trailing ASCII_CR number, as in parser-test" (str (segments "MSH|^~\\&|A|B|||||ADT^A01|ID1|P|2.3" "PID|1||X" "") parser/ASCII_CR)]
    ["CRLF segment delimiters" (string/join "\r\n" ["MSH|^~\\&|A|B|||||ADT^A01|ID1|P|2.3" "PID|1||X" "OBX|1|TX|||Y" ""])]
+   ["line feed inside a field" (segments "MSH|^~\\&|A|B|||||ORU^R01|ID21|P|2.3" "OBX|1|TX|||one\ntwo" "")]
    ["LF segment delimiters" (string/join "\n" ["MSH|^~\\&|A|B|||||ADT^A01|ID1|P|2.3" "PID|1||X" "OBX|1|TX|||Y" ""])]
    ["custom delimiters" (segments "MSH#!@$%#APP#FAC#####ADT!A01#ID2#P#2.3" "PID#1##A!B%C%D@E!F#G" "")]
    ["components, subcomponents and repeats" (segments "MSH|^~\\&|A|B|||||ADT^A01|ID3|P|2.3" "PID|1||A&B&C^D~E^F&G~~H|^&|&^|~|x~" "ZZ1|&&|^^|~~|&" "")]
