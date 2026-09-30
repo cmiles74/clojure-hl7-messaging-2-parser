@@ -5,10 +5,7 @@
   (:require
    [com.nervestaple.hl7-parser.parser :refer [create-message create-segment
                                              create-field pr-delimiters pr-field
-                                             format-timestamp]]
-   ;; not used here, still loaded as they were with the previous :use
-   [com.nervestaple.hl7-parser.util]
-   [com.nervestaple.hl7-parser.dump]))
+                                             format-timestamp]]))
 
 (def REGEX-MESSAGE-ID
      #"MSH\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|[^\|]*\|([^\|]*)\|")
