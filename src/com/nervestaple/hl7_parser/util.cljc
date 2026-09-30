@@ -15,6 +15,5 @@
   [message]
   (if message
     #?(:clj (. message replaceAll "\\p{Cntrl}" "")
-       ;; the same characters as Java's \p{Cntrl}
        :cljs (string/replace message #"[\x00-\x1F\x7F]" ""))))
 
