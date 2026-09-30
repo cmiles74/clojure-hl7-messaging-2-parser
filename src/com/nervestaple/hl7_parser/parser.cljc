@@ -107,8 +107,6 @@
   segment."
   [delimiters segment]
 
-  ;; header segments (MSH, FHS and BHS) hold their delimiters as the text of
-  ;; the first field, so they're emitted like any other field
   (str (:id segment) (char (:field delimiters))
        (apply str
               (interpose (char (:field delimiters))
