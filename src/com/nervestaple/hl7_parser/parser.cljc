@@ -8,10 +8,6 @@
       (java.util Date)
       (java.io PushbackReader StringReader))))
 
-;; HL7 timestamp format, SimpleDateFormat isn't thread-safe so use format-timestamp
-;; instead of sharing this instance
-#?(:clj (def TIMESTAMP-FORMAT (new SimpleDateFormat "yyyyMMddHHmmss")))
-
 (defn format-timestamp
   "Returns an HL7 compatible timestamp (yyyyMMddHHmmss) in local time for the
   provided date (a java.util.Date or a JavaScript Date), or for the current time
