@@ -156,6 +156,32 @@ Index HL7 Index   Type        Content
 ...
 ```
     
+Changes in 3.6.0
+----------------
+
+The library now compiles under ClojureScript as well as Clojure, so it can be
+used in the browser or under Node. A `deps.edn` is included, which lets
+tools.deps projects use the library as a git or local dependency.
+
+Along with that, the following changes are worth knowing about if you are
+coming from 3.5.1.
+
+* `TIMESTAMP-FORMAT` has been removed, use `format-timestamp` instead.
+* `format-timestamp` is safe to call from more than one thread, and emitting a
+  field that holds a `java.util.Date` works (it used to throw an exception).
+* `ack-message-fallback` puts the message id in MSH-10 and MSA-2 as fields
+  (`{:content [...]}`) instead of a bare string or `nil`, so acknowledgments
+  built from an unparsed message are emitted correctly.
+* Requiring the "message" namespace no longer loads the "util" and "dump"
+  namespaces, require them yourself if you use them.
+* A message whose last segment has no trailing carriage return parses in more
+  cases, including a message that is only a header segment and data that ends
+  inside the subcomponents of a field.
+* A message that separates its segments with line feeds raises an error that
+  says so, instead of returning the whole message as one header segment.
+* `set-field` says which field is missing when it is given an index the segment
+  does not have, instead of failing inside `assoc`.
+
 Development
 ------------
 
