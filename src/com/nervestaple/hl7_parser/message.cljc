@@ -151,14 +151,26 @@
 
                       (if (= segment-id (:id segment))
 
-                         ;; associate our new fields
-                        (assoc segment :fields
+                        (do
+                          ;; the field has to be one this segment has, assoc
+                          ;; past the end of the fields fails differently on
+                          ;; each platform
+                          (when (< (count (:fields segment)) field-index-fixed)
+                            (throw #?(:clj (Exception. (str "There is no field at index "
+                                                           field-index " in the "
+                                                           segment-id " segment"))
+                                      :cljs (js/Error. (str "There is no field at index "
+                                                            field-index " in the "
+                                                            segment-id " segment")))))
+
+                          ;; associate our new fields
+                          (assoc segment :fields
 
                                 ;; associate our new value with the
                                 ;; field collections
-                               (assoc (:fields segment)
-                                      field-index-fixed
-                                      (create-field field-value)))
+                                 (assoc (:fields segment)
+                                        field-index-fixed
+                                        (create-field field-value))))
 
                          ;; return the segment unaltered
                         segment))
