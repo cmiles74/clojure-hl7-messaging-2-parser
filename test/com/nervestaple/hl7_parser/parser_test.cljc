@@ -371,6 +371,14 @@
              (-> (parser/parse (str header "\rOBX|1|TX|||one\ntwo\r"))
                  :segments second :fields (nth 4)))))))
 
+#?(:clj
+   (deftest parse-reader-test
+     (testing "Parses the same message from a reader and from a buffered reader"
+       (let [text "MSH|^~\\&|A|B\rPID|1||X\r"
+             parsed (parser/parse text)]
+         (is (= parsed (parser/parse (java.io.StringReader. text))))
+         (is (= parsed (parser/parse (java.io.BufferedReader. (java.io.StringReader. text)))))))))
+
 (deftest segment-id-whitespace-test
   (let [segment-id (fn [segment]
                      (-> (parser/parse (str "MSH|^~\\&|A|B\r" segment))

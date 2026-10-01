@@ -93,6 +93,27 @@
    ["extra trailing segment delimiter" (segments "MSH|^~\\&|A|B|||||ADT^A01|ID1|P|2.3" "PID|1||X" "" "")]
    ["trailing ASCII_CR number, as in parser-test" (str (segments "MSH|^~\\&|A|B|||||ADT^A01|ID1|P|2.3" "PID|1||X" "") parser/ASCII_CR)]
    ["CRLF segment delimiters" (string/join "\r\n" ["MSH|^~\\&|A|B|||||ADT^A01|ID1|P|2.3" "PID|1||X" "OBX|1|TX|||Y" ""])]
+   ["line feed in an MSH field" "MSH|^~\\&|A\nB|C\rPID|1\r"]
+   ["line feed in an MSH component" "MSH|^~\\&|A|B^C\nD\rPID|1\r"]
+   ["line feed in an MSH repeat" "MSH|^~\\&|A|B~C\nD\rPID|1\r"]
+   ["line feed in an MSH subcomponent" "MSH|^~\\&|A|B&C\nD\rPID|1\r"]
+   ["LF CR segment delimiters"
+    (str "MSH|^~\\&|A|B|||||ADT^A01|ID22|P|2.3" "\n\rPID|1||X\n\r")]
+   ["header only, trailing line feed"
+    (str "MSH|^~\\&|A|B|||||ADT^A01|ID23|P|2.3" "\n")]
+   ["carriage return after the header, line feeds after that"
+    (str "MSH|^~\\&|A|B|||||ADT^A01|ID24|P|2.3" "\rPID|1||X\nOBX|1|TX|||Y\n")]
+   ["FHS batch with line feeds after the first segment"
+    "FHS|^~\\&|A\rBHS|^~\\&|B\nMSH|^~\\&|C\nPID|1\n"]
+   ["all line feed FHS batch" "FHS|^~\\&|A\nBHS|^~\\&|B\nMSH|^~\\&|C\nPID|1\n"]
+   ["line feed as a delimiter" "MSH\n^~\\&\nA\rPID\n1\r"]
+   ["trailing CRLF" (str "MSH|^~\\&|A|B|||||ADT^A01|ID25|P|2.3" "\rPID|1||X\r\n")]
+   ["next line in segment id"
+    (str "MSH|^~\\&|A|B|||||ADT^A01|ID26|P|2.3" "\rPID\u0085|1\r")]
+   ["line separator in segment id"
+    (str "MSH|^~\\&|A|B|||||ADT^A01|ID27|P|2.3" "\rPID\u2028|1\r")]
+   ["lone surrogate in segment id"
+    (str "MSH|^~\\&|A|B|||||ADT^A01|ID28|P|2.3" "\rPID\ud83d|1\r")]
    ["line feed inside a field" (segments "MSH|^~\\&|A|B|||||ORU^R01|ID21|P|2.3" "OBX|1|TX|||one\ntwo" "")]
    ["LF segment delimiters" (string/join "\n" ["MSH|^~\\&|A|B|||||ADT^A01|ID1|P|2.3" "PID|1||X" "OBX|1|TX|||Y" ""])]
    ["custom delimiters" (segments "MSH#!@$%#APP#FAC#####ADT!A01#ID2#P#2.3" "PID#1##A!B%C%D@E!F#G" "")]
@@ -134,12 +155,27 @@
     (segments "MSH|^~\\&|A|B|||||ADT^A01|ID16|P|2.3" "PID|1||X&")]])
 
 (defn- attempt
-  "Calls f and returns its result, or a map with the error message if it throws."
+  "Calls f and returns its result, or a map with the error message if it throws.
+  The parser reports its own errors with the exceptions `error` builds, a plain
+  Exception on the JVM and a plain Error in ClojureScript. Anything else is a
+  bug, so the kind of error is recorded (but not its class name, those differ by
+  platform) and shows up when the two platforms are compared."
   [f]
   (try
     (f)
     (catch #?(:clj Exception :cljs :default) e
-      {:error (ex-message e)})))
+      (let [from-parser? #?(:clj (identical? Exception (class e))
+                            :cljs (identical? js/Error (type e)))]
+        (cond-> {:error (ex-message e)}
+          (not from-parser?) (assoc :unexpected-error-type true))))))
+
+(defn- pieces
+  "Returns the text split into three pieces, so that the parser is handed a
+  sequence of strings instead of one string."
+  [text]
+  (let [size (max 1 (quot (count text) 3))]
+    (mapv #(subs text % (min (count text) (+ % size)))
+          (range 0 (count text) size))))
 
 (defn- code-units
   "Returns the UTF-16 code units of the string."
@@ -179,12 +215,7 @@
   (let [parsed (attempt #(parser/parse text))]
     (section "parse" parsed)
     (section "parse (seq of characters)" (= parsed (attempt #(parser/parse (seq text)))))
-    (section "parse (reader)"
-             (= parsed (attempt #(parser/parse #?(:clj (java.io.StringReader. text)
-                                                  :cljs text)))))
-    (section "parse (buffered reader)"
-             (= parsed (attempt #(parser/parse #?(:clj (java.io.BufferedReader. (java.io.StringReader. text))
-                                                  :cljs text)))))
+    (section "parse (sequence of strings)" (= parsed (attempt #(parser/parse (pieces text)))))
     (section "message-id-unparsed" (message/message-id-unparsed text))
     (section "sanitize-message" (util/sanitize-message text))
     (section "sanitize-message code units" (code-units (util/sanitize-message text)))
@@ -266,10 +297,25 @@
   (section "parse nil" (attempt #(parser/parse nil)))
   (section "parse vector of strings" (attempt #(parser/parse ["MSH|^~\\&|A" "\r" "PID|1||X" "\r"]))))
 
+(defn- escape-non-ascii
+  "Returns the text with every character above printable ASCII written as an
+  escape. The report is then plain ASCII, which both platforms write the same
+  way (they encode an unpaired surrogate differently)."
+  [text]
+  (apply str
+         (map (fn [character]
+                (let [code #?(:clj (int character) :cljs (.charCodeAt character 0))]
+                  (if (< 126 code)
+                    (let [digits #?(:clj (Integer/toHexString code)
+                                    :cljs (.toString code 16))]
+                      (str "\\u" (apply str (repeat (- 4 (count digits)) "0")) digits))
+                    character)))
+              text)))
+
 (defn main
   "Writes the report to the file at the provided path."
   [path]
-  (let [output (with-out-str (report))]
+  (let [output (escape-non-ascii (with-out-str (report)))]
     #?(:clj (spit path output)
        :cljs (fs/writeFileSync path output))))
 
