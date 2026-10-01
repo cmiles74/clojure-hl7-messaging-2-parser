@@ -229,13 +229,26 @@
    (defmethod get-reader :default
      [text-in] (StringPushbackReader. (apply str text-in) 0 nil)))
 
+(defn- read-int
+  "Returns the next character from the reader as an integer, or -1 at the end of
+  the data. The reader is the one get-reader returns for this platform."
+  [reader]
+  #?(:clj (.read ^PushbackReader reader)
+     :cljs (.read ^StringPushbackReader reader)))
+
+(defn- unread-int
+  "Pushes the provided integer back into the reader, the next read returns it."
+  [reader int-in]
+  #?(:clj (.unread ^PushbackReader reader (int int-in))
+     :cljs (.unread ^StringPushbackReader reader int-in)))
+
 (defn- peek-int
   "Returns the next integer that will be read. You can only peek ahead
   one integer."
   [reader]
 
-  (let [next-int (.read reader)]
-    (.unread reader next-int)
+  (let [next-int (read-int reader)]
+    (unread-int reader next-int)
     next-int))
 
 (defn- expect-char-int
@@ -273,7 +286,7 @@
   [reader]
 
   ;; loop through the reader, buffer the message id and build up the delimiters
-  (loop [int-in (.read reader)
+  (loop [int-in (read-int reader)
          buffer []
          segment-id nil
          delimiters {}
@@ -289,23 +302,23 @@
 
       ;; read the field delimiter
       (= 0 char-index)
-      (recur (.read reader) buffer segment-id (assoc delimiters :field int-in) (inc char-index))
+      (recur (read-int reader) buffer segment-id (assoc delimiters :field int-in) (inc char-index))
 
       ;; read the component delimiter
       (= 1 char-index)
-      (recur (.read reader) buffer segment-id (assoc delimiters :component int-in) (inc char-index))
+      (recur (read-int reader) buffer segment-id (assoc delimiters :component int-in) (inc char-index))
 
       ;; read the repeating delimiter
       (= 2 char-index)
-      (recur (.read reader) buffer segment-id (assoc delimiters :repeating int-in) (inc char-index))
+      (recur (read-int reader) buffer segment-id (assoc delimiters :repeating int-in) (inc char-index))
 
       ;; read the escape delimiter
       (= 3 char-index)
-      (recur (.read reader) buffer segment-id (assoc delimiters :escape int-in) (inc char-index))
+      (recur (read-int reader) buffer segment-id (assoc delimiters :escape int-in) (inc char-index))
 
       ;; read the subcomponent delimiter
       (= 4 char-index)
-      (recur (.read reader) buffer segment-id (assoc delimiters :subcomponent int-in) (inc char-index))
+      (recur (read-int reader) buffer segment-id (assoc delimiters :subcomponent int-in) (inc char-index))
 
       ;; throw an exception if this isn't a field delimiter
       (= 5 char-index)
@@ -313,12 +326,12 @@
         (when (not (expect-char-int (:field delimiters) int-in))
           (throw (error
                    "Expected beginning of next segment but read more delimiter data")))
-        (.unread reader int-in)
+        (unread-int reader int-in)
         delimiters)
 
       ;; handle text, this is likely the segment's id
       :else
-      (recur (.read reader)
+      (recur (read-int reader)
              (conj buffer (char int-in))
              segment-id
              delimiters
@@ -331,7 +344,7 @@
   [reader]
 
   ;; loop through the reader, buffer the message id and build up the delimiters
-  (loop [int-in (.read reader)
+  (loop [int-in (read-int reader)
          buffer []
          segment-id nil
          delimiters {}
@@ -354,13 +367,13 @@
           (throw (error (str "Expected first segment to have the id of "
                                   "\"MSH\" or \"FHS\"  but found \""
                                   segment-id "\""))))
-        (.unread reader int-in)
+        (unread-int reader int-in)
         {:segment-id segment-id
          :delimiters (read-delimiters reader)})
 
       ;; handle text, this is likely the segment's id
       :else
-      (recur (.read reader)
+      (recur (read-int reader)
              (conj buffer (char int-in))
              segment-id delimiters
              (inc char-index)))))
@@ -370,11 +383,11 @@
   [message reader]
 
   ;; make sure the next character is an escape delimiter
-  (expect-char-int (:escape (:delimiters message)) (.read reader))
+  (expect-char-int (:escape (:delimiters message)) (read-int reader))
 
   ;; loop through the reader and store the escaped text in the
   ;; buffer. Start the buffer out with the escape delimiter.
-  (loop [int-in (.read reader) buffer [(char (:escape (:delimiters message)))]]
+  (loop [int-in (read-int reader) buffer [(char (:escape (:delimiters message)))]]
 
     (cond
 
@@ -387,7 +400,7 @@
       (apply str (conj buffer (char int-in)))
 
       :else
-      (recur (.read reader) (conj buffer (char int-in))))))
+      (recur (read-int reader) (conj buffer (char int-in))))))
 
 (def ^:private whitespace
   "The characters that java.lang.Character/isWhitespace treats as whitespace: the
@@ -419,7 +432,7 @@
   [message reader]
 
   ;; loop the reader and store the text in buffer
-  (loop [int-in (.read reader) buffer []]
+  (loop [int-in (read-int reader) buffer []]
 
     (cond
 
@@ -429,20 +442,20 @@
 
       ;; we may encounter some escaped text
       ;; (= (:escape (:delimiters message)) int-in)
-      ;; (do (.unread reader int-in)
+      ;; (do (unread-int reader int-in)
       ;;     (recur nil (conj buffer (read-escaped-text message reader))))
 
       ;; if we hit a delimiter, push it back and return the text
       (delimiter? message int-in)
-      (do (.unread reader int-in)
+      (do (unread-int reader int-in)
           (apply str buffer))
 
       (= nil int-in)
-      (recur (.read reader) buffer)
+      (recur (read-int reader) buffer)
 
       ;; store the text in the buffer and read the next int
       :else
-      (recur (.read reader) (conj buffer (char int-in))))))
+      (recur (read-int reader) (conj buffer (char int-in))))))
 
 
 (defn- read-subcomponents
@@ -450,11 +463,11 @@
   [reader message data]
 
   ;; make sure the next character is a subcomponent delimiter
-  (expect-char-int (:subcomponent (:delimiters message)) (.read reader))
+  (expect-char-int (:subcomponent (:delimiters message)) (read-int reader))
 
   ;; loop the reader, build up vector of subcomponents by building up
   ;; each subcomponent
-  (loop [int-in (.read reader)
+  (loop [int-in (read-int reader)
          subcomponents (if (not (nil? data)) [data] [])
          subcomponent []]
 
@@ -463,10 +476,10 @@
       ;; subcomponent delimiter, add our subcomponent to our vector of
       ;; subcomponents
       (= (:subcomponent (:delimiters message)) int-in)
-      (recur (.read reader) (conj subcomponents (apply str subcomponent)) [])
+      (recur (read-int reader) (conj subcomponents (apply str subcomponent)) [])
 
       ;; (= (:escape (:delimiters message)) int-in)
-      ;; (do (.unread reader int-in)
+      ;; (do (unread-int reader int-in)
       ;;     (recur nil subcomponents (conj subcomponent
       ;;                                    (read-escaped-text message reader))))
 
@@ -480,15 +493,15 @@
           (= (:field (:delimiters message)) int-in)
           (= (:component (:delimiters message)) int-in)
           (= (:repeating (:delimiters message)) int-in))
-      (do (.unread reader int-in)
+      (do (unread-int reader int-in)
           (conj subcomponents (apply str subcomponent)))
 
       (= nil int-in)
-      (recur (.read reader) subcomponents subcomponent)
+      (recur (read-int reader) subcomponents subcomponent)
 
       ;; build up the individual subcomponent
       :else
-      (recur (.read reader) subcomponents (conj subcomponent (char int-in))))))
+      (recur (read-int reader) subcomponents (conj subcomponent (char int-in))))))
 
 (defn- read-field
   "Reads in the next field of segment data from the reader. The
@@ -502,7 +515,7 @@
 
   ;; throw an exception if we aren't starting with a field or
   ;; repeating delimiter
-  (let [int-in (.read reader)]
+  (let [int-in (read-int reader)]
     (when-not (or (= (:field (:delimiters message)) int-in)
                   (= (:repeating (:delimiters message)) int-in))
       (throw (error
@@ -510,13 +523,13 @@
 
   ;; loop through the reader, build up a vector of fields by building
   ;; up each individual field
-  (loop [int-in (.read reader) field-data [] current-field nil]
+  (loop [int-in (read-int reader) field-data [] current-field nil]
 
     (cond
 
       ;; handle repeating fields by recursively calling this function
       (and (= (:repeating (:delimiters message)) int-in) repeating)
-      (do (.unread reader int-in)
+      (do (unread-int reader int-in)
           (recur nil
 
                  ;; decide if the current field of data should be
@@ -533,7 +546,7 @@
       ;; handle subcomponents, add the current field to our field data
       ;; if it's not nil
       (= (:subcomponent (:delimiters message)) int-in)
-      (do (.unread reader int-in)
+      (do (unread-int reader int-in)
           (recur nil
                  (conj field-data (read-subcomponents
                                    reader message
@@ -545,7 +558,7 @@
       ;; handle components, add the field data to our current data or
       ;; a placeholder component if it's nil
       (= (:component (:delimiters message)) int-in)
-      (recur (.read reader)
+      (recur (read-int reader)
              (if (not (nil? current-field))
                (conj field-data (apply str current-field))
                (if (> 1 (count field-data))
@@ -563,7 +576,7 @@
 
         ;; don't unread the end of file marker
         (if (not= -1 int-in)
-          (.unread reader int-in))
+          (unread-int reader int-in))
 
         ;; create our field
         (create-field
@@ -575,14 +588,14 @@
            field-data)))
 
       ;; (= (:escape (:delimiters message)) int-in)
-      ;; (do (.unread reader int-in)
+      ;; (do (unread-int reader int-in)
       ;;     (recur nil field-data (if (not (nil? current-field))
       ;;                             (conj current-field (read-escaped-text message reader))
       ;;                             [(read-escaped-text message reader)])))
 
       ;; build up the data for our current field
       :else
-      (recur (.read reader) field-data
+      (recur (read-int reader) field-data
              (if int-in
 
                ;; if the current field is nil, start a new vector of
@@ -597,7 +610,8 @@
   (let [line-feed (char ASCII_LF)
         scan (fn scan [value]
                (cond
-                 (string? value) (boolean (some #(= line-feed %) value))
+                 (string? value) #?(:clj (<= 0 (.indexOf ^String value (int ASCII_LF)))
+                                    :cljs (boolean (some #(= line-feed %) value)))
                  (map? value) (scan (:content value))
                  (coll? value) (boolean (some scan value))
                  :else false))]
@@ -615,7 +629,7 @@
                            (create-field (pr-delimiters (:delimiters message))))]
 
     ;; loop through the reader and build up our fields
-    (loop [int-in (.read reader) fields []]
+    (loop [int-in (read-int reader) fields []]
 
       (cond
 
@@ -634,7 +648,7 @@
 
         ;; handle the end of field by reading the next field
         (= (:field (:delimiters message)) int-in)
-        (do (.unread reader int-in)
+        (do (unread-int reader int-in)
             (recur nil (conj fields (read-field reader message true))))
 
         ;; handle the end of segment by adding the fields to the
@@ -644,7 +658,7 @@
 
         ;; keep reading in more field data
         :else
-        (recur (.read reader) fields)))))
+        (recur (read-int reader) fields)))))
 
 (defn- read-segment
   "Reads in the segment of data from the reader and returns a new
@@ -668,7 +682,7 @@
 
       ;; loop through the reader and build up the fields for our
       ;; segment
-      (loop [int-in (.read reader) fields []]
+      (loop [int-in (read-int reader) fields []]
 
         (cond
 
@@ -683,12 +697,12 @@
           ;; handle the field delimiter by reading the next field and
           ;; adding it to our vector of fields
           (= (:field (:delimiters message)) int-in)
-          (do (.unread reader int-in)
+          (do (unread-int reader int-in)
               (recur nil (conj fields (read-field reader message true))))
 
           ;; read in more field data
           :else
-          (recur (.read reader) fields))))))
+          (recur (read-int reader) fields))))))
 
 (defn- parse-message
   "Parses the data read by the reader into a valid HL7 message data map."
@@ -696,7 +710,7 @@
 
   ;; loop through the reader and parse the delimiters, the MSH segment
   ;; and them the segments; build up the message structure
-  (loop [int-in (.read reader) parsing :delimiters segment-id nil message (create-empty-message)]
+  (loop [int-in (read-int reader) parsing :delimiters segment-id nil message (create-empty-message)]
 
     (cond
 
@@ -707,7 +721,7 @@
 
       ;; parse out the delimiters, then loop to get the MSH segment
       (= parsing :delimiters)
-      (do (.unread reader int-in)
+      (do (unread-int reader int-in)
           (let [delimiters (read-segment-delimiters reader)]
             (recur nil :header-segment
                    (:segment-id delimiters)
@@ -723,7 +737,7 @@
 
       ;; loop to read more of the message
       :else
-      (recur (.read reader) parsing segment-id message))))
+      (recur (read-int reader) parsing segment-id message))))
 
 (defn parse
   "Reads data from the provided source (a Reader, String, etc.) and parses that
