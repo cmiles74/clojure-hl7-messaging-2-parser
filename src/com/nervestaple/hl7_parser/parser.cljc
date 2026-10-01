@@ -592,9 +592,7 @@
                current-field)))))
 
 (defn- line-feed?
-  "Returns true if any of the field's content contains a line feed. Segments are
-  separated by a carriage return, a line feed in the header segment means the
-  whole message was read as one segment."
+  "Returns true if any of the field's content contains a line feed."
   [field]
   (let [line-feed (char ASCII_LF)
         scan (fn scan [value]
@@ -606,7 +604,7 @@
     (scan field)))
 
 (defn- read-msh-fhs-segment
-  "Adds the \"MSH\" or \"BHS\" segment and its first field of data to the provided
+  "Adds the \"MSH\" or \"FHS\" segment and its first field of data to the provided
   message map and returns the new message. This first field will be the list of
   delimiters, the provided message must already have a valid set of delimiters."
   [segment-id reader message]
@@ -614,17 +612,7 @@
   ;; instantiate our new MSH segment and fill the first field with our
   ;; delimiters
   (let [segment (add-field (create-segment segment-id)
-                           (create-field (pr-delimiters (:delimiters message))))
-
-        ;; a line feed in this segment means the message is separated by line
-        ;; feeds instead of carriage returns and we have read all of it as one
-        ;; segment, rather than return that we let the caller know
-        end-segment (fn [fields]
-                      (when (some line-feed? fields)
-                        (throw (error (str "Line feed found in the " segment-id
-                                           " segment, segments are separated by "
-                                           "a carriage return"))))
-                      (add-segment message (add-fields segment fields)))]
+                           (create-field (pr-delimiters (:delimiters message))))]
 
     ;; loop through the reader and build up our fields
     (loop [int-in (.read reader) fields []]
@@ -632,9 +620,17 @@
       (cond
 
         ;; handle the end of the data by adding the fields to the segment,
-        ;; the last segment may not have a segment delimiter
+        ;; the last segment may not have a segment delimiter. A line feed in
+        ;; those fields means the message separates its segments with line
+        ;; feeds and we have read all of it as one segment, rather than return
+        ;; that we let the caller know
         (= -1 int-in)
-        (end-segment fields)
+        (do
+          (when (some line-feed? fields)
+            (throw (error (str "Line feed found in the " segment-id " segment and "
+                               "the data ends without a segment delimiter, segments "
+                               "are separated by a carriage return"))))
+          (add-segment message (add-fields segment fields)))
 
         ;; handle the end of field by reading the next field
         (= (:field (:delimiters message)) int-in)
@@ -644,7 +640,7 @@
         ;; handle the end of segment by adding the fields to the
         ;; segment and then returning our segment of data
         (= SEGMENT-DELIMITER int-in)
-        (end-segment fields)
+        (add-segment message (add-fields segment fields))
 
         ;; keep reading in more field data
         :else
